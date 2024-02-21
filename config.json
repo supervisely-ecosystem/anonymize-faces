@@ -1,0 +1,16 @@
+{
+  "name": "App Template (No GUI)",
+  "description": "template for your headless app",
+  "type": "app",
+  "categories": ["development"],
+  "docker_image": "supervisely/development:latest",
+  "instance_version": "6.8.54",
+  "main_script": "src/main.py",
+  "modal_template": "src/modal.html",
+  "task_location": "workspace_tasks",
+  "isolate": true,
+  "icon": "https://img.icons8.com/color/96/000000/console.png",
+  "icon_background": "#FFFFFF",
+  "headless": true,
+  "poster": "https://i.imgur.com/XO1LGw9.png"
+}
