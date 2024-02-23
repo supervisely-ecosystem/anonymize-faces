@@ -6,7 +6,8 @@
   
 <p align="center">
   <a href="#Overview">Overview</a> •
-  <a href="#How-To-Run">How To Run</a>
+  <a href="#How-To-Run">How To Run</a> •
+  <a href="#Results">Results</a> 
 </p>
 
 [![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervisely.com/apps/supervisely-ecosystem/anonymize-faces)
@@ -49,3 +50,7 @@ A new project will be created with anonymized images. The original images will n
 3. Select the shape of the anonymization area: rectangle or ellipse
 
 4. Click `Run` button
+
+## Results
+
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/7ab9567a-b8bc-4c2c-addf-654064753fb6"/>
