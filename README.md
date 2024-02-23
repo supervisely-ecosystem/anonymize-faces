@@ -38,7 +38,7 @@ A new project will be created with anonymized images. The original images will n
 
 4. Click `Run` button
 
-<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/770000ce-675c-436b-a8ed-2fb34b8ce63d"/>
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/770000ce-675c-436b-a8ed-2fb34b8ce63d" width="600"/>
 
 ### Option 2. From context menu
 
