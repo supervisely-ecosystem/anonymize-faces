@@ -100,17 +100,11 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
     _, faces = model.detect(img)
     if faces is None:
         return []
-    return [list(map(int, face[:4])) for face in faces]
 
+    def _convert(coord: str):
+        return max(0, int(coord))
 
-def _get_ellipses_mask(size, faces):
-    mask = np.zeros(size, dtype=np.uint8)
-    for x, y, w, h in faces:
-        box = cv2.RotatedRect(
-            (float(x), float(y)), (float(x + h), float(y)), (float(x + h), float(y + w))
-        )
-        mask = cv2.ellipse(mask, box=box, color=1, thickness=-1)
-    return mask
+    return [list(map(_convert, face[:4])) for face in faces]
 
 
 def _get_rectangles_mask(size, faces):
@@ -120,24 +114,35 @@ def _get_rectangles_mask(size, faces):
     return mask
 
 
-def obfuscate_faces(img: np.ndarray, faces: np.ndarray, shape: str, color: str) -> np.ndarray:
+def blur_faces(img, faces, shape: str):
+    for x, y, w, h in faces:
+        if shape == g.Shape.RECTANGLE:
+            img[y : y + h, x : x + w] = cv2.blur(img[y : y + h, x : x + w], (h // 2, w // 2))
+        elif shape == g.Shape.ELLIPSE:
+            box = cv2.RotatedRect(
+                (float(x), float(y)), (float(x + h), float(y)), (float(x + h), float(y + w))
+            )
+            mask = np.zeros(img.shape[:2], dtype=np.uint8)
+            mask = cv2.ellipse(mask, box=box, color=1, thickness=-1)
+            img_with_blurred_rect = img.copy()
+            img_with_blurred_rect[y : y + h, x : x + w] = cv2.blur(
+                img[y : y + h, x : x + w], (h // 2, w // 2)
+            )
+            img = np.where(mask[:, :, None] == 1, img_with_blurred_rect, img)
+    return img
+
+
+def obfuscate_faces(img: np.ndarray, faces: np.ndarray, shape: str, method: str) -> np.ndarray:
     if shape not in g.AVAILABLE_SHAPES:
         raise ValueError(f"Invalid shape: {shape}")
-    if color not in g.AVAILABLE_COLORS:
-        raise ValueError(f"Invalid color: {color}")
+    if method not in g.AVAILABLE_METHODS:
+        raise ValueError(f"Invalid method: {method}")
 
-    if color == g.Color.BLUR:
-        obfuscated = cv2.blur(img, (img.shape[0] // 2, img.shape[1] // 2))
-    elif color == g.Color.BLACK:
-        obfuscated = 0
-
-    if shape == g.Shape.ELLIPSE:
-        mask = _get_ellipses_mask(img.shape[:2], faces)
-    elif shape == g.Shape.RECTANGLE:
+    if method == g.Method.BLUR:
+        return blur_faces(img, faces, shape)
+    else:
         mask = _get_rectangles_mask(img.shape[:2], faces)
-
-    img = np.where(mask[:, :, None] == 1, obfuscated, img)
-    return img
+        return np.where(mask[:, :, None] == 1, 0, img)
 
 
 def run_images(
@@ -157,7 +162,7 @@ def run_images(
         for image_info in batch:
             img = g.Api.image.download_np(image_info.id)
             faces = detector(img)
-            img = obfuscate_faces(img, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_color)
+            img = obfuscate_faces(img, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_method)
             dst_nps.append(img)
 
         dst_images = g.Api.image.upload_nps(
@@ -213,7 +218,7 @@ def run_videos(
                     break
                 faces = detector(frame)
                 frame = obfuscate_faces(
-                    frame, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_color
+                    frame, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_method
                 )
                 out.write(frame)
             cap.release()

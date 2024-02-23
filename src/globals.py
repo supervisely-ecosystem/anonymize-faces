@@ -14,26 +14,26 @@ class Shape:
     ELLIPSE = "ellipse"
 
 
-class Color:
+class Method:
     BLUR = "blur"
-    BLACK = "black"
+    SOLID = "solid"
 
 
 AVAILABLE_SHAPES = [Shape.RECTANGLE, Shape.ELLIPSE]
-AVAILABLE_COLORS = [Color.BLUR, Color.BLACK]
+AVAILABLE_METHODS = [Method.BLUR, Method.SOLID]
 
 
 class ModalState:
     """Modal state"""
 
     SHAPE = "modal.state.Shape"
-    COLOR = "modal.state.Color"
+    METHOD = "modal.state.Method"
 
     def shape(self):
         return os.environ.get(self.SHAPE, Shape.RECTANGLE)
 
-    def color(self):
-        return os.environ.get(self.COLOR, Color.BLUR)
+    def method(self):
+        return os.environ.get(self.METHOD, Method.BLUR)
 
 
 class State:
@@ -45,7 +45,7 @@ class State:
         self.selected_project = sly.env.project_id()
         self.selected_dataset = sly.env.dataset_id(raise_not_found=False)
         self.obfuscate_shape = ModalState().shape()
-        self.obfuscate_color = ModalState().color()
+        self.obfuscate_method = ModalState().method()
         self.continue_working = True
 
 
