@@ -117,11 +117,17 @@ def blur_faces(img, faces, shape: str):
         if shape == g.Shape.RECTANGLE:
             img[y : y + h, x : x + w] = cv2.blur(img[y : y + h, x : x + w], (h // 2, w // 2))
         elif shape == g.Shape.ELLIPSE:
-            box = cv2.RotatedRect(
-                (float(x), float(y)), (float(x + h), float(y)), (float(x + h), float(y + w))
-            )
             mask = np.zeros(img.shape[:2], dtype=np.uint8)
-            mask = cv2.ellipse(mask, box=box, color=1, thickness=-1)
+            mask = cv2.ellipse(
+                mask,
+                (x + w // 2, y + h // 2),
+                (w // 2, h // 2),
+                0,
+                0,
+                360,
+                color=1,
+                thickness=-1,
+            )
             img_with_blurred_rect = img.copy()
             img_with_blurred_rect[y : y + h, x : x + w] = cv2.blur(
                 img[y : y + h, x : x + w], (h // 2, w // 2)
@@ -179,7 +185,6 @@ def run_images(
         g.Api.annotation.upload_anns(
             [img.id for img in dst_images], [anns_dict[img.id] for img in batch]
         )
-        progress.update(len(batch))
 
 
 def run_videos(
