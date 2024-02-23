@@ -1,6 +1,6 @@
 <div align="center" markdown>
 
-<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/b0718785-cc2b-4f5c-b652-6d5b12158446"/>
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/ecec1b80-bbb9-4b5b-8d61-05f11723b69d"/>
 
 # Anonymize Faces
   
