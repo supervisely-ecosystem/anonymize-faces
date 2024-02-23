@@ -248,7 +248,6 @@ def main():
         detector = detect_faces_yunet
 
         for dataset in datasets:
-            print(dataset.name)
             dst_dataset = create_dst_dataset(dataset, dst_project)
             dst_datasets.append(dst_dataset)
 
