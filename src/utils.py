@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Callable
+from typing import Callable, List
 
 import cv2
 import numpy as np
@@ -238,7 +238,7 @@ def run_videos(
             g.Api.video.annotation.append(dst_video_info.id, src_ann, key_id_map)
 
 
-def get_total_items(datasets: list[sly.DatasetInfo], project_type) -> int:
+def get_total_items(datasets: List[sly.DatasetInfo], project_type) -> int:
     if project_type == str(sly.ProjectType.IMAGES):
         return sum([dataset.items_count for dataset in datasets])
     else:
