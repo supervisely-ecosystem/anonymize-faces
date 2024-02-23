@@ -46,7 +46,7 @@ A new project will be created with anonymized images. The original images will n
 
 1. Open the context menu of a project or dataset, select the application in `Run App -> Transform` section
 
-<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/5420d6c2-1ce6-47e8-a901-8dd3fbf10c98"/>
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/b6e96a47-a9b0-4ace-82e9-7bab563d5756"/>
 
 2. Select the anonymization method: solid or blur
 
@@ -56,6 +56,6 @@ A new project will be created with anonymized images. The original images will n
 
 ## Results
 
-<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/7ab9567a-b8bc-4c2c-addf-654064753fb6"/>
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/08481f94-2cfb-4ba4-85d8-10b17cf467d1"/>
 
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/55c3f057-1fb7-482a-844b-d742caa09a4e"/>
