@@ -57,3 +57,5 @@ A new project will be created with anonymized images. The original images will n
 ## Results
 
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/7ab9567a-b8bc-4c2c-addf-654064753fb6"/>
+
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/55c3f057-1fb7-482a-844b-d742caa09a4e"/>
