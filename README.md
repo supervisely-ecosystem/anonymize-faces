@@ -38,12 +38,15 @@ A new project will be created with anonymized images. The original images will n
 
 4. Click `Run` button
 
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/770000ce-675c-436b-a8ed-2fb34b8ce63d"/>
 
 ### Option 2. From context menu
 
 0. Go to the list of projects in your Workspace or the list of datasets in a project
 
-1. Open the context menu of a project or dataset, select the application in `Run App` section
+1. Open the context menu of a project or dataset, select the application in `Run App -> Transform` section
+
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/5420d6c2-1ce6-47e8-a901-8dd3fbf10c98"/>
 
 2. Select the anonymization method: solid or blur
 
