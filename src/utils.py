@@ -156,7 +156,7 @@ def run_images(
     detector: Callable,
     progress,
 ):
-    for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=10):
+    for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=100):
         dst_names = [image_info.name for image_info in batch]
         dst_img_metas = [
             {**image_info.meta, "anonymized_faces": True, "src_image_id": image_info.id}
