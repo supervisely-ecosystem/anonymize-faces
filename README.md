@@ -38,7 +38,7 @@ A new project will be created with anonymized images. The original images will n
 
 ### Option 2. From context menu
 
-0. Go to the list of projects in your Workspace or to the list of datasets in a project
+0. Go to the list of projects in your Workspace or the list of datasets in a project
 
 1. Open the context menu of a project or dataset, select the application in `Run App` section
 

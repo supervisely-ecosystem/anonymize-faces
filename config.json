@@ -1,16 +1,23 @@
 {
-  "name": "App Template (No GUI)",
-  "description": "template for your headless app",
+  "name": "Anonymize faces",
+  "description": "App to obscure faces in images and videos",
   "type": "app",
-  "categories": ["development"],
-  "docker_image": "supervisely/development:latest",
-  "instance_version": "6.8.54",
+  "categories": [
+    "data operations",
+    "images",
+    "videos"
+  ],
+  "context_menu": {
+    "context_category": "Transform",
+    "target": [
+      "images_project",
+      "videos_project",
+      "images_dataset",
+      "videos_dataset"
+    ]
+  },
+  "docker_image": "supervisely/data-operations:6.73.35",
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
-  "task_location": "workspace_tasks",
-  "isolate": true,
-  "icon": "https://img.icons8.com/color/96/000000/console.png",
-  "icon_background": "#FFFFFF",
-  "headless": true,
-  "poster": "https://i.imgur.com/XO1LGw9.png"
+  "headless": true
 }
