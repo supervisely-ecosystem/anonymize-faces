@@ -51,7 +51,6 @@ def create_dst_dataset(
     return dst_dataset
 
 
-@sly.timeit
 def detect_faces_cv(img: np.ndarray) -> np.ndarray:
     face_cascade = cv2.CascadeClassifier(
         cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -93,7 +92,6 @@ def get_yunet_model():
     return g.YUNET_MODEl
 
 
-@sly.timeit
 def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
     model = get_yunet_model()
     model.setInputSize((img.shape[1], img.shape[0]))
