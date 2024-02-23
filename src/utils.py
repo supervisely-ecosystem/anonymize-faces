@@ -145,7 +145,21 @@ def obfuscate_faces(img: np.ndarray, faces: np.ndarray, shape: str, method: str)
     if method == g.Method.BLUR:
         return blur_faces(img, faces, shape)
     else:
-        mask = _get_rectangles_mask(img.shape[:2], faces)
+        if shape == g.Shape.RECTANGLE:
+            mask = _get_rectangles_mask(img.shape[:2], faces)
+        elif shape == g.Shape.ELLIPSE:
+            mask = np.zeros(img.shape[:2], dtype=np.uint8)
+            for x, y, w, h in faces:
+                mask = cv2.ellipse(
+                    mask,
+                    (x + w // 2, y + h // 2),
+                    (w // 2, h // 2),
+                    0,
+                    0,
+                    360,
+                    color=1,
+                    thickness=-1,
+                )
         return np.where(mask[:, :, None] == 1, 0, img)
 
 
