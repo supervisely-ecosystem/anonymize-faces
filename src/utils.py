@@ -168,6 +168,7 @@ def run_images(
             faces = detector(img)
             img = obfuscate_faces(img, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_method)
             dst_nps.append(img)
+            progress.update(1)
 
         dst_images = g.Api.image.upload_nps(
             dataset_id=dst_dataset.id,
@@ -224,6 +225,7 @@ def run_videos(
                     frame, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_method
                 )
                 out.write(frame)
+                progress.update(1)
             cap.release()
             out.release()
             dst_video_info = g.Api.video.upload_path(
@@ -234,7 +236,17 @@ def run_videos(
                 g.Api.video.annotation.download(video.id), dst_project_meta, key_id_map
             )
             g.Api.video.annotation.append(dst_video_info.id, src_ann, key_id_map)
-            progress.update(1)
+
+
+def get_total_items(datasets: list[sly.DatasetInfo], project_type) -> int:
+    if project_type == str(sly.ProjectType.IMAGES):
+        return sum([dataset.items_count for dataset in datasets])
+    else:
+        s = 0
+        for dataset in datasets:
+            videos = g.Api.video.get_list(dataset.id)
+            s += sum([video.frames_count for video in videos])
+        return s
 
 
 def main():
@@ -247,7 +259,8 @@ def main():
         datasets = [g.Api.dataset.get_info_by_id(g.STATE.selected_dataset)]
     dst_datasets = []
     run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
-    with sly.tqdm.tqdm(total=sum([dataset.items_count for dataset in datasets])) as progress:
+    total = get_total_items(datasets, src_project.type)
+    with sly.tqdm.tqdm(total=total) as progress:
         detector = detect_faces_yunet
 
         for dataset in datasets:
