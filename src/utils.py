@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Callable, List
 
@@ -222,11 +223,11 @@ def run_videos(
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            input_fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+            fourcc = cv2.VideoWriter_fourcc(*"XVID")
             out_video_path = os.path.join(g.APP_DATA_DIR, "videos", f"obfuscated_{video.name}")
             out = cv2.VideoWriter(
                 out_video_path,
-                input_fourcc,
+                fourcc,
                 fps,
                 (width, height),
             )
