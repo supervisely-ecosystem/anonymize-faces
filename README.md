@@ -1,9 +1,49 @@
-# app-template-headless
+<div align="center" markdown>
 
-template for your app without GUI. This app prints progress bar 10 times and sleeps 1 second on each iteration. That's it!
+# Data Nodes
+  
+<p align="center">
+  <a href="#Overview">Overview</a> •
+  <a href="#How-To-Run">How To Run</a>
+</p>
 
-See video how app works:
+[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervisely.com/apps/supervisely-ecosystem/anonymize-faces)
+[![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervisely.com/slack)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/anonymize-faces)
+[![views](https://app.supervise.ly/img/badges/views/supervisely-ecosystem/anonymize-faces.png)](https://supervisely.com)
+[![runs](https://app.supervise.ly/img/badges/runs/supervisely-ecosystem/anonymize-faces.png)](https://supervisely.com)
 
-<a href="https://www.youtube.com/watch?v=4VdvP0SRbiM" title="Video" target="_blank">
-  <img src="https://i.imgur.com/XO1LGw9.png" alt="Watch video"/>
-</a>
+</div>
+
+## Overview
+
+This application detects faces on images and anonymizes them. It is useful when you need to hide faces on images for privacy reasons.
+You can choose between two anonymization methods: solid and blur. You can also choose the shape of the anonymization area: rectangle or ellipse.
+A new project will be created with anonymized images. The original images will not be changed.
+
+## How To Run
+
+### Option 1. From ecosystem
+
+0. Find this app in Ecosystem and click `Run Application` button
+
+1. Select Project or Dataset with images you want to anonymize
+
+2. Select the anonymization method: solid or blur
+
+3. Select the shape of the anonymization area: rectangle or ellipse
+
+4. Click `Run` button
+
+
+### Option 2. From context menu
+
+0. Go to the list of projects in your Workspace or to the list of datasets in a project
+
+1. Open the context menu of a project or dataset, select the application in `Run App` section
+
+2. Select the anonymization method: solid or blur
+
+3. Select the shape of the anonymization area: rectangle or ellipse
+
+4. Click `Run` button
