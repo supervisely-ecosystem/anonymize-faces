@@ -3,6 +3,31 @@
     <sly-icon
       :options="{'className': 'zmdi zmdi-code', 'color': '#009aff', 'bgColor': 'transparent'}"
     ></sly-icon>
-    <span>Template for your v1 app without GUI. </span>
+    <sly-field
+      title="Shape"
+      description="Shape to obfuscate the data with"
+    >
+      <el-radio-group v-model="state.Shape">
+        <div>
+          <el-radio label="rectangle"><b>Rectangle</el-radio>
+        </div>
+        <div>
+          <el-radio label="ellipse"><b>Ellipse</b></el-radio>
+        </div>
+      </el-radio-group>
+    </sly-field>
+    <sly-field
+      title="Color"
+      description="Color to obfuscate the data with"
+    >
+      <el-radio-group v-model="state.Color">
+        <div>
+          <el-radio label="blur"><b>Blur</el-radio>
+        </div>
+        <div>
+          <el-radio label="black"><b>Black</b></el-radio>
+        </div>
+      </el-radio-group>
+    </sly-field>
   </div>
 </div>

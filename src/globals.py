@@ -9,25 +9,48 @@ if sly.is_development():
     load_dotenv(os.path.expanduser("~/supervisely.env"))
 
 
-# * To avoid global variables in different modules, it's better to use g.STATE (g.AppState) object
-# * across the app. It can be accessed from any module by importing globals module.
+class Shape:
+    RECTANGLE = "rectangle"
+    ELLIPSE = "ellipse"
+
+
+class Color:
+    BLUR = "blur"
+    BLACK = "black"
+
+
+AVAILABLE_SHAPES = [Shape.RECTANGLE, Shape.ELLIPSE]
+AVAILABLE_COLORS = [Color.BLUR, Color.BLACK]
+
+
+class ModalState:
+    """Modal state"""
+
+    SHAPE = "modal.state.Shape"
+    COLOR = "modal.state.Color"
+
+    def shape(self):
+        return os.environ.get(self.SHAPE, Shape.RECTANGLE)
+
+    def color(self):
+        return os.environ.get(self.COLOR, Color.BLUR)
+
+
 class State:
+    """App state"""
+
     def __init__(self):
-        # * This class should contain all the variables that are used across the app.
-        # * For example selected team, workspace, project, dataset, etc.
-        self.task_id = sly.env.task_id()
         self.selected_team = sly.env.team_id()
         self.selected_workspace = sly.env.workspace_id()
-
-        # * If you need to get the project and dataset from the environment variables,
-        # * you can uncomment the following lines.
-        # self.selected_project = sly.env.project_id(raise_not_found=False)
-        # self.selected_dataset = sly.env.dataset_id(raise_not_found=False)
-
+        self.selected_project = sly.env.project_id()
+        self.selected_dataset = sly.env.dataset_id(raise_not_found=False)
+        self.obfuscate_shape = ModalState().shape()
+        self.obfuscate_color = ModalState().color()
         self.continue_working = True
 
 
-# * Class object to access from other modules.
-# * import src.globals as g
-# * selected_team = g.STATE.selected_team
 STATE = State()
+Api = sly.Api()
+APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
+
+YUNET_MODEl = None
