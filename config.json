@@ -29,7 +29,9 @@
   "modal_template": "src/modal.html",
   "modal_template_state": {
     "Shape": "rectangle",
-    "Method": "blur"
+    "Method": "blur",
+    "Anonymize": true,
+    "SaveDetections": false
   },
   "headless": true
 }

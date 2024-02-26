@@ -10,6 +10,21 @@ import supervisely as sly
 import globals as g
 
 
+def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
+    """Update project meta to include anonymized faces"""
+    obj_classes = project_meta.obj_classes
+    if not obj_classes.has_key(g.FACE_CLASS_NAME):
+        obj_classes = obj_classes.add(sly.ObjClass(g.FACE_CLASS_NAME, sly.Rectangle))
+        project_meta = project_meta.clone(obj_classes=obj_classes)
+    tag_metas = project_meta.tag_metas
+    if not g.CONFIDENCE_TAG_META_NAME in tag_metas:
+        tag_metas = tag_metas.add(
+            sly.TagMeta(g.CONFIDENCE_TAG_META_NAME, sly.TagValueType.ANY_NUMBER)
+        )
+        project_meta = project_meta.clone(tag_metas=tag_metas)
+    return project_meta
+
+
 def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
     """Create a new project for anonymized images"""
     src_project_meta = sly.ProjectMeta.from_json(g.Api.project.get_meta(src_project.id))
@@ -24,7 +39,12 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
         type=src_project.type,
         change_name_if_conflict=True,
     )
-    g.Api.project.update_meta(dst_project.id, src_project_meta)
+    dst_project_meta = (
+        updated_project_meta(src_project_meta)
+        if g.STATE.should_save_detections
+        else src_project_meta
+    )
+    g.Api.project.update_meta(dst_project.id, dst_project_meta)
     dst_custom_data = {
         **src_project.custom_data,
         "anonymized_faces": True,
@@ -51,15 +71,6 @@ def create_dst_dataset(
     return dst_dataset
 
 
-def detect_faces_cv(img: np.ndarray) -> np.ndarray:
-    face_cascade = cv2.CascadeClassifier(
-        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    )
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.1, 10)
-    return faces
-
-
 def download_yunet_model():
     url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
     file_name = "face_detection_yunet_2023mar.onnx"
@@ -81,7 +92,7 @@ def get_yunet_model():
             model=model_path,
             config="",
             input_size=(320, 320),  # default, can be changed
-            score_threshold=0.6,
+            score_threshold=g.CONFIDENCE_THRESHOLD,
             nms_threshold=0.3,
             top_k=5000,
             backend_id=backend_id,
@@ -102,7 +113,12 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
     def _convert(coord: str):
         return max(0, int(coord))
 
-    return [list(map(_convert, face[:4])) for face in faces]
+    res = []
+    for face in faces:
+        conf = float(face[-1])
+        face_coords = [_convert(x) for x in face[:4]]
+        res.append(*face_coords, conf)
+    return res
 
 
 def _get_rectangles_mask(size, faces):
@@ -136,7 +152,7 @@ def blur_faces(img, faces, shape: str):
     return img
 
 
-def obfuscate_faces(img: np.ndarray, faces: np.ndarray, shape: str, method: str) -> np.ndarray:
+def obfuscate_faces(img: np.ndarray, faces: List, shape: str, method: str) -> np.ndarray:
     if shape not in g.AVAILABLE_SHAPES:
         raise ValueError(f"Invalid shape: {shape}")
     if method not in g.AVAILABLE_METHODS:
@@ -163,6 +179,23 @@ def obfuscate_faces(img: np.ndarray, faces: np.ndarray, shape: str, method: str)
         return np.where(mask[:, :, None] == 1, 0, img)
 
 
+def update_annotation(dets, annotation: sly.Annotation, project_meta: sly.ProjectMeta):
+    face_obj_class = project_meta.get_obj_class(g.FACE_CLASS_NAME)
+    conf_tag_meta = project_meta.get_tag_meta(g.CONFIDENCE_TAG_META_NAME)
+
+    labels = []
+    for det in dets:
+        x, y, w, h, conf = det
+
+        label = sly.Label(
+            sly.Rectangle(x, y, x + w, y + h),
+            obj_class=face_obj_class,
+            tags=sly.Tag(conf_tag_meta, conf),
+        )
+        labels.append(label)
+    return annotation.add_labels(labels)
+
+
 def run_images(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
@@ -171,25 +204,6 @@ def run_images(
     progress,
 ):
     for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=100):
-        dst_names = [image_info.name for image_info in batch]
-        dst_img_metas = [
-            {**image_info.meta, "anonymized_faces": True, "src_image_id": image_info.id}
-            for image_info in batch
-        ]
-        dst_nps = []
-        for image_info in batch:
-            img = g.Api.image.download_np(image_info.id)
-            faces = detector(img)
-            img = obfuscate_faces(img, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_method)
-            dst_nps.append(img)
-            progress.update(1)
-
-        dst_images = g.Api.image.upload_nps(
-            dataset_id=dst_dataset.id,
-            names=dst_names,
-            imgs=dst_nps,
-            metas=dst_img_metas,
-        )
         ann_infos = g.Api.annotation.download_batch(src_dataset.id, [img.id for img in batch])
         anns_dict = {
             ann_info.image_id: sly.Annotation.from_json(
@@ -197,6 +211,38 @@ def run_images(
             )
             for ann_info in ann_infos
         }
+
+        dst_nps = []
+        for image_info in batch:
+            img = g.Api.image.download_np(image_info.id)
+            dets = detector(img)
+            if g.STATE.should_anonymize:
+                img = obfuscate_faces(
+                    img, [d[:4] for d in dets], g.STATE.obfuscate_shape, g.STATE.obfuscate_method
+                )
+            dst_nps.append(img)
+            if g.STATE.should_save_detections:
+                anns_dict[image_info.id] = update_annotation(
+                    dets, anns_dict[image_info.id], dst_project_meta
+                )
+
+            progress.update(1)
+
+        dst_names = [image_info.name for image_info in batch]
+        dst_img_metas = [
+            {
+                **image_info.meta,
+                "anonymized_faces": g.STATE.should_anonymize,
+                "src_image_id": image_info.id,
+            }
+            for image_info in batch
+        ]
+        dst_images = g.Api.image.upload_nps(
+            dataset_id=dst_dataset.id,
+            names=dst_names,
+            imgs=dst_nps,
+            metas=dst_img_metas,
+        )
         g.Api.annotation.upload_anns(
             [img.id for img in dst_images], [anns_dict[img.id] for img in batch]
         )
@@ -234,9 +280,9 @@ def run_videos(
                 ret, frame = cap.read()
                 if not ret:
                     break
-                faces = detector(frame)
+                dets = detector(frame)
                 frame = obfuscate_faces(
-                    frame, faces, g.STATE.obfuscate_shape, g.STATE.obfuscate_method
+                    frame, [d[:4] for d in dets], g.STATE.obfuscate_shape, g.STATE.obfuscate_method
                 )
                 out.write(frame)
                 progress.update(1)

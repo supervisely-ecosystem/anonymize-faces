@@ -1,30 +1,46 @@
 <div class="mt10">
   <div>
-    <sly-field
-      title="Shape"
-      description="Shape to obfuscate the data with"
-    >
-      <el-radio-group v-model="state.Shape">
-        <div>
-          <el-radio label="rectangle"><b>Rectangle</el-radio>
-        </div>
-        <div>
-          <el-radio label="ellipse"><b>Ellipse</b></el-radio>
-        </div>
-      </el-radio-group>
-    </sly-field>
-    <sly-field
-      title="Method"
-      description="Anonymization method"
-    >
-      <el-radio-group v-model="state.Method">
-        <div>
-          <el-radio label="blur"><b>Blur</el-radio>
-        </div>
-        <div>
-          <el-radio label="solid"><b>Solid</b></el-radio>
-        </div>
-      </el-radio-group>
-    </sly-field>
+    <el-checkbox v-model="state.SaveDetections">
+      <sly-field
+        title="Save Detections"
+        description="If checked, new class 'face' will be created and bounding box with 'model confidence' tag will be added for each prediction"
+      >
+      </sly-field>
+    </el-checkbox>
+    <el-checkbox :v-if="state.modalityType=='images'" v-model="state.Anonymize">
+      <sly-field
+        title="Anonymize"
+        description="If checked, detected faces will be obfuscated using selected method"
+      >
+      </sly-field>
+    </el-checkbox>
+    <div :v-if="state.modalityType=='videos' || state.Anonymize">
+      <sly-field
+        title="Shape"
+        description="Shape to obfuscate the data with"
+      >
+        <el-radio-group v-model="state.Shape">
+          <div>
+            <el-radio label="rectangle"><b>Rectangle</el-radio>
+          </div>
+          <div>
+            <el-radio label="ellipse"><b>Ellipse</b></el-radio>
+          </div>
+        </el-radio-group>
+      </sly-field>
+      <sly-field
+        title="Method"
+        description="Anonymization method"
+      >
+        <el-radio-group v-model="state.Method">
+          <div>
+            <el-radio label="blur"><b>Blur</el-radio>
+          </div>
+          <div>
+            <el-radio label="solid"><b>Solid</b></el-radio>
+          </div>
+        </el-radio-group>
+      </sly-field>
+    </div>
   </div>
 </div>
