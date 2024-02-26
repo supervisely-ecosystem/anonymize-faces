@@ -1,20 +1,30 @@
 <div class="mt10">
   <div>
-    <el-checkbox v-model="state.SaveDetections">
-      <sly-field
-        title="Save Detections"
-        description="If checked, new class 'face' will be created and bounding box with 'model confidence' tag will be added for each prediction"
-      >
-      </sly-field>
-    </el-checkbox>
-    <el-checkbox :v-if="state.modalityType=='images'" v-model="state.Anonymize">
-      <sly-field
-        title="Anonymize"
-        description="If checked, detected faces will be obfuscated using selected method"
-      >
-      </sly-field>
-    </el-checkbox>
-    <div :v-if="state.modalityType=='videos' || state.Anonymize">
+    <div v-if="state.slySelectedContext.startsWith('images')">
+      <div>
+        <el-checkbox v-model="state.SaveDetections">
+          <div style="display: inline-block">
+            <sly-field
+              title="Save Detections"
+              description="If checked, new class 'face' will be created and bounding box with 'model confidence' tag will be added for each prediction"
+            >
+            </sly-field>
+          </div>
+        </el-checkbox>
+      </div>
+      <div>
+        <el-checkbox :v-if="state.slySelectedContext=='images_project' || state.slySelectedContext=='images_dataset'" v-model="state.Anonymize">
+          <div style="display: inline-block">
+            <sly-field
+              title="Anonymize"
+              description="If checked, detected faces will be obfuscated using selected method"
+            ></sly-field>
+          </div>
+        </el-checkbox>
+      </div>
+    </div>
+
+    <div v-if="state.Anonymize || state.slySelectedContext.startsWith('videos')">
       <sly-field
         title="Shape"
         description="Shape to obfuscate the data with"
