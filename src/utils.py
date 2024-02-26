@@ -92,7 +92,7 @@ def get_yunet_model():
             model=model_path,
             config="",
             input_size=(320, 320),  # default, can be changed
-            score_threshold=g.CONFIDENCE_THRESHOLD,
+            score_threshold=g.STATE.threshold,
             nms_threshold=0.3,
             top_k=5000,
             backend_id=backend_id,

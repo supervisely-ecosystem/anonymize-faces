@@ -45,6 +45,9 @@ class ModalState:
         val = os.environ.get(self.SAVE_DETECTIONS, True)
         return val in ("True", "true", "1", True)
 
+    def threshold(self):
+        return float(os.environ.get("modal.state.Threshold", 0.55))
+
 
 class State:
     """App state"""
@@ -58,6 +61,7 @@ class State:
         self.obfuscate_method = ModalState().method()
         self.should_anonymize = ModalState().anonymize()
         self.should_save_detections = ModalState().save_detections()
+        self.threshold = ModalState().threshold()
         self.continue_working = True
 
 
@@ -66,6 +70,5 @@ Api = sly.Api()
 APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
 
 YUNET_MODEl = None
-CONFIDENCE_THRESHOLD = 0.6
 FACE_CLASS_NAME = "face"
 CONFIDENCE_TAG_META_NAME = "model confidence"

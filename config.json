@@ -31,7 +31,8 @@
     "Shape": "rectangle",
     "Method": "blur",
     "Anonymize": true,
-    "SaveDetections": false
+    "SaveDetections": false,
+    "Threshold": 0.6
   },
   "headless": true
 }
