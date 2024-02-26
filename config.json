@@ -27,5 +27,9 @@
   "docker_image": "supervisely/data-operations:6.73.35",
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
+  "modal_template_state": {
+    "Shape": "rectangle",
+    "Method": "blur"
+  },
   "headless": true
 }

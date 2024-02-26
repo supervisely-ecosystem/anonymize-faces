@@ -28,12 +28,16 @@ class ModalState:
 
     SHAPE = "modal.state.Shape"
     METHOD = "modal.state.Method"
+    SAVE_DETECTIONS = "modal.state.SaveDetections"
 
     def shape(self):
         return os.environ.get(self.SHAPE, Shape.RECTANGLE)
 
     def method(self):
         return os.environ.get(self.METHOD, Method.BLUR)
+
+    def save_detections(self):
+        return os.environ.get(self.SAVE_DETECTIONS, True)
 
 
 class State:
@@ -46,6 +50,7 @@ class State:
         self.selected_dataset = sly.env.dataset_id(raise_not_found=False)
         self.obfuscate_shape = ModalState().shape()
         self.obfuscate_method = ModalState().method()
+        self.should_save_detections = ModalState().save_detections()
         self.continue_working = True
 
 
