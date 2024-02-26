@@ -1,6 +1,6 @@
 {
-  "name": "Anonymize faces",
-  "description": "App to obscure faces in images and videos",
+  "name": "Face detection and anonymization",
+  "description": "App to obscure faces on images and videos",
   "type": "app",
   "categories": [
     "data operations",
