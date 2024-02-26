@@ -59,3 +59,5 @@ A new project will be created with anonymized images. The original images will n
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/08481f94-2cfb-4ba4-85d8-10b17cf467d1"/>
 
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/55c3f057-1fb7-482a-844b-d742caa09a4e"/>
+
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/61844772/3f9b0900-206a-43bf-be38-57b80c61c49d"/>
