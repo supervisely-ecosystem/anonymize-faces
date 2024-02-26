@@ -34,7 +34,7 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
     )
     dst_project = g.Api.project.create(
         workspace_id=src_project.workspace_id,
-        name=f"{src_project.name}_obfuscated",
+        name=f"{src_project.name}_anonymized",
         description=description,
         type=src_project.type,
         change_name_if_conflict=True,
@@ -117,7 +117,7 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
     for face in faces:
         conf = float(face[-1])
         face_coords = [_convert(x) for x in face[:4]]
-        res.append(*face_coords, conf)
+        res.append([*face_coords, conf])
     return res
 
 
@@ -188,9 +188,9 @@ def update_annotation(dets, annotation: sly.Annotation, project_meta: sly.Projec
         x, y, w, h, conf = det
 
         label = sly.Label(
-            sly.Rectangle(x, y, x + w, y + h),
+            sly.Rectangle(y, x, y + h, x + w),
             obj_class=face_obj_class,
-            tags=sly.Tag(conf_tag_meta, conf),
+            tags=[sly.Tag(conf_tag_meta, conf)],
         )
         labels.append(label)
     return annotation.add_labels(labels)
@@ -269,7 +269,7 @@ def run_videos(
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             fourcc = cv2.VideoWriter_fourcc(*"XVID")
-            out_video_path = os.path.join(g.APP_DATA_DIR, "videos", f"obfuscated_{video.name}")
+            out_video_path = os.path.join(g.APP_DATA_DIR, "videos", f"anonymized_{video.name}")
             out = cv2.VideoWriter(
                 out_video_path,
                 fourcc,

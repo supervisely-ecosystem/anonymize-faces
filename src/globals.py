@@ -38,10 +38,12 @@ class ModalState:
         return os.environ.get(self.METHOD, Method.BLUR)
 
     def anonymize(self):
-        return os.environ.get(self.ANONYMIZE, True)
+        val = os.environ.get(self.ANONYMIZE, True)
+        return val in ("True", "true", "1", True)
 
     def save_detections(self):
-        return os.environ.get(self.SAVE_DETECTIONS, True)
+        val = os.environ.get(self.SAVE_DETECTIONS, True)
+        return val in ("True", "true", "1", True)
 
 
 class State:
