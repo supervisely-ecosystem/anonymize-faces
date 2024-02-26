@@ -3,9 +3,14 @@
   "description": "App to obscure faces on images and videos",
   "type": "app",
   "categories": [
-    "data operations",
+    "neural network",
     "images",
-    "videos"
+    "videos",
+    "object detection",
+    "detection & tracking",
+    "nn tools",
+    "data operations",
+    "data transformation"
   ],
   "icon_cover": true,
 	"icon": "https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/fbd80a43-073a-404b-bf4f-a7b42eba5016",
