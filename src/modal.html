@@ -1,18 +1,24 @@
 <div class="mt10">
   <div v-if="state.slySelectedContext.startsWith('images')">
     <div>
-      <el-checkbox v-model="state.SaveDetections">
+      <el-checkbox 
+        v-model="state.SaveDetections" 
+        @change="if (!state.SaveDetections) {state.Anonymize = true}"
+      >
         <div style="display: inline-block">
           <sly-field
             title="Save Detections"
-            description="If checked, new class 'face' will be created and bounding box with 'model confidence'\ntag will be added for each prediction"
+            description="If checked, bounding box of class 'face' with 'model confidence' tag will be added for each prediction"
           >
           </sly-field>
         </div>
       </el-checkbox>
     </div>
     <div>
-      <el-checkbox :v-if="state.slySelectedContext=='images_project' || state.slySelectedContext=='images_dataset'" v-model="state.Anonymize">
+      <el-checkbox 
+        v-model="state.Anonymize"
+        @change="if (!state.Anonymize) {state.SaveDetections = true}"
+      >
         <div style="display: inline-block">
           <sly-field
             title="Anonymize"
