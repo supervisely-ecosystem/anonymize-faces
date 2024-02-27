@@ -1,5 +1,9 @@
 <div class="mt10">
-  <div v-if="state.slySelectedContext.startsWith('images')">
+  <div v-if="!state?.slySelectedContext || state.slySelectedContext.startsWith('images')">
+    <div v-if="!state?.slySelectedContext" style="display: flex; align-items: center; margin-bottom: 15px;">
+      <i class="zmdi zmdi-alert-triangle" style="color: orange; font-size: 25px; margin: 5px; margin-left:15px"></i>
+      <b>Save detections works only for images. If video project is selected, only anonymization settings are applied!</b>
+    </div>
     <div>
       <el-checkbox 
         v-model="state.SaveDetections" 
@@ -29,7 +33,7 @@
     </div>
   </div>
 
-  <div v-if="state.Anonymize || state.slySelectedContext.startsWith('videos')">
+  <div v-if="state.Anonymize || (state?.slySelectedContext && state.slySelectedContext.startsWith('videos'))" style="margin-left: 22px;">
     <sly-field
       title="Shape"
       description="Shape to obfuscate the data with"
