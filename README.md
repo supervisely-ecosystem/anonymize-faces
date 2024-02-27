@@ -2,7 +2,7 @@
 
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/ecec1b80-bbb9-4b5b-8d61-05f11723b69d"/>
 
-# Anonymize Faces
+# Face detection and anonymization
   
 <p align="center">
   <a href="#Overview">Overview</a> •
@@ -23,6 +23,19 @@
 This application detects faces on images and anonymizes them. It is useful when you need to hide faces on images for privacy reasons.
 You can choose between two anonymization methods: solid and blur. You can also choose the shape of the anonymization area: rectangle or ellipse.
 A new project will be created with anonymized images. The original images will not be changed.
+
+In some cases you may want to review the results and add/edit annotations. For example, if the app didn't detect some faces, you can add them manually. Or if the app detected a face where there is none, you can delete the annotation. You can also edit the anonymization area if needed. You can do this by following these steps:
+1. Run the app with "Save Detections" option enabled.
+2. Review the results add/edit annotations if needed.
+3. Run the app with "Anonymize" option enabled.
+
+### Release 1.1.0 update
+
+- Renamed app to "Face detection and anonymization"
+- Added "Threshold" option
+- Added "Save Detections" option for images.
+  - This option allows to save detected faces as annotations
+  - If Anonymize checkbox is enabled, not only detected faces will be obscured, but all bounding boxes of class `face` will be obscured as well
 
 ## How To Run
 
