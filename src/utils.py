@@ -196,6 +196,24 @@ def update_annotation(dets, annotation: sly.Annotation, project_meta: sly.Projec
     return annotation.add_labels(labels)
 
 
+def face_coords_from_rectangle(rect: sly.Rectangle):
+    return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+
+
+def faces_from_annotation(ann: sly.Annotation):
+    return [
+        face_coords_from_rectangle(label.geometry)
+        for label in ann.labels
+        if (label.obj_class.name == g.FACE_CLASS_NAME and isinstance(label.geometry, sly.Rectangle))
+    ]
+
+
+def filter_faces(faces: List):
+    faces = [tuple(face) for face in faces]
+    faces = set(faces)
+    return list(faces)
+
+
 def run_images(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
@@ -216,15 +234,20 @@ def run_images(
         for image_info in batch:
             img = g.Api.image.download_np(image_info.id)
             dets = detector(img)
-            if g.STATE.should_anonymize:
-                img = obfuscate_faces(
-                    img, [d[:4] for d in dets], g.STATE.obfuscate_shape, g.STATE.obfuscate_method
-                )
-            dst_nps.append(img)
             if g.STATE.should_save_detections:
                 anns_dict[image_info.id] = update_annotation(
                     dets, anns_dict[image_info.id], dst_project_meta
                 )
+            if g.STATE.should_anonymize:
+                faces = [det[:4] for det in dets]
+                faces.extend(faces_from_annotation(anns_dict[image_info.id]))
+                img = obfuscate_faces(
+                    img,
+                    filter_faces(faces),
+                    g.STATE.obfuscate_shape,
+                    g.STATE.obfuscate_method,
+                )
+            dst_nps.append(img)
 
             progress.update(1)
 
