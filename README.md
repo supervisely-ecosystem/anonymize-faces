@@ -74,3 +74,7 @@ In some cases you may want to review the results and add/edit annotations. For e
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/55c3f057-1fb7-482a-844b-d742caa09a4e"/>
 
 <img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/61844772/3f9b0900-206a-43bf-be38-57b80c61c49d"/>
+
+# Acknowledgment
+
+This app is based on the great work `libfacedetection` ([github](https://github.com/ShiqiYu/libfacedetection)). ![GitHub Org's stars](https://img.shields.io/github/stars/ShiqiYu/libfacedetection?style=social)
