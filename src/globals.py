@@ -18,6 +18,10 @@ class Method:
     BLUR = "blur"
     SOLID = "solid"
 
+class Model:
+    YUNET = "yunet"
+    EGOBLUR = "egoblur"
+
 
 AVAILABLE_SHAPES = [Shape.RECTANGLE, Shape.ELLIPSE]
 AVAILABLE_METHODS = [Method.BLUR, Method.SOLID]
@@ -30,6 +34,7 @@ class ModalState:
     METHOD = "modal.state.Method"
     SAVE_DETECTIONS = "modal.state.SaveDetections"
     ANONYMIZE = "modal.state.Anonymize"
+    TARGET = "modal.state.Target"
 
     def shape(self):
         return os.environ.get(self.SHAPE, Shape.RECTANGLE)
@@ -47,6 +52,9 @@ class ModalState:
 
     def threshold(self):
         return float(os.environ.get("modal.state.Threshold", 0.55))
+    
+    def target(self):
+        return os.environ.get(self.TARGET, Model.YUNET)
 
 
 class State:
@@ -62,6 +70,7 @@ class State:
         self.should_anonymize = ModalState().anonymize()
         self.should_save_detections = ModalState().save_detections()
         self.threshold = ModalState().threshold()
+        self.target = ModalState().target()
         self.continue_working = True
 
 
@@ -70,5 +79,6 @@ Api = sly.Api()
 APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
 
 YUNET_MODEl = None
+EGOBLUR_MODEl = None
 FACE_CLASS_NAME = "face"
 CONFIDENCE_TAG_META_NAME = "model confidence"

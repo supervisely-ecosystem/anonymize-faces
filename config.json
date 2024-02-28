@@ -28,6 +28,7 @@
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
+    "Target": "faces",
     "Shape": "rectangle",
     "Method": "blur",
     "Anonymize": true,

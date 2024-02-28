@@ -6,6 +6,9 @@ import cv2
 import numpy as np
 import requests
 import supervisely as sly
+import torch
+import torchvision
+from functools import lru_cache
 
 import globals as g
 
@@ -118,6 +121,56 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
         conf = float(face[-1])
         face_coords = [_convert(x) for x in face[:4]]
         res.append([*face_coords, conf])
+    return res
+
+@lru_cache
+def get_device() -> str:
+    return (
+        "cpu"
+        if not torch.cuda.is_available()
+        else f"cuda:{torch.cuda.current_device()}"
+    )
+
+def get_lp_egoblur():
+    if g.EGOBLUR_MODEl is None:
+        lp_model_path = os.path.join(os.getcwd(), "model", "ego_blur_lp.jit")
+        lp_detector = torch.jit.load(lp_model_path, map_location="cpu").to(get_device())
+        lp_detector.eval()
+
+        g.EGOBLUR_MODEl = lp_detector
+    return g.EGOBLUR_MODEl
+
+def detect_lp_egoblur(
+    image: np.ndarray,
+):
+    model_score_threshold = g.STATE.threshold
+    nms_iou_threshold = 0.3
+    detector = get_lp_egoblur()
+    if len(image.shape) == 2:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    image_transposed = np.transpose(image, (2, 0, 1))
+    image_tensor = torch.from_numpy(image_transposed).to(device=get_device())
+
+    with torch.no_grad():
+        detections = detector(image_tensor)
+
+    boxes, _, scores, _ = detections  # returns boxes, labels, scores, dims
+
+    nms_keep_idx = torchvision.ops.nms(boxes, scores, nms_iou_threshold)
+    boxes = boxes[nms_keep_idx]
+    scores = scores[nms_keep_idx]
+
+    boxes = boxes.cpu().numpy()
+    scores = scores.cpu().numpy()
+
+    score_keep_idx = np.where(scores > model_score_threshold)[0]
+    boxes = boxes[score_keep_idx]
+
+    res = [
+        box.tolist() + [score]
+        for box, score in zip(boxes, scores)
+        if score > model_score_threshold
+    ]
     return res
 
 
@@ -344,8 +397,7 @@ def main():
     run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
     total = get_total_items(datasets, src_project.type)
     with sly.tqdm.tqdm(total=total) as progress:
-        detector = detect_faces_yunet
-
+        detector = detect_faces_yunet if g.STATE.target == "yunet" else detect_lp_egoblur
         for dataset in datasets:
             dst_dataset = create_dst_dataset(dataset, dst_project)
             dst_datasets.append(dst_dataset)

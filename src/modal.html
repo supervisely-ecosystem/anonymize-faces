@@ -1,6 +1,18 @@
 <div class="mt10">
   <div v-if="state?.slySelectedContext && state.slySelectedContext.startsWith('images')">
     <div>
+      <sly-field
+        title="Anonymization Target"
+        description="Select which objects should be targeted for anonymization"
+      >
+      <div>
+        <el-select v-model="state.Target" placeholder="Select Option">
+          <el-option key="yunet" label="Faces (YUNET)" value="yunet"></el-option>
+          <el-option key="egoblur" label="Car license plates (Egoblur)" value="egoblur"></el-option>
+        </el-select>
+      </div>
+    </div>
+    <div>
       <el-checkbox
         v-model="state.SaveDetections" 
         @change="if (!state.SaveDetections) {state.Anonymize = true}"
@@ -28,7 +40,7 @@
       </el-checkbox>
     </div>
   </div>
-
+  
   <div v-if="state.Anonymize || (state?.slySelectedContext && state.slySelectedContext.startsWith('videos'))" style="margin-left: 22px;">
     <sly-field
       title="Shape"
