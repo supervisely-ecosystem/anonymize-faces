@@ -22,6 +22,7 @@ class Method:
 class Model:
     YUNET = "yunet"
     EGOBLUR = "egoblur"
+    BOTH = "both"
 
 
 AVAILABLE_SHAPES = [Shape.RECTANGLE, Shape.ELLIPSE]
@@ -55,7 +56,7 @@ class ModalState:
         return float(os.environ.get("modal.state.Threshold", 0.55))
     
     def target(self):
-        return os.environ.get(self.TARGET, Model.YUNET)
+        return os.environ.get(self.TARGET, Model.BOTH)
 
 
 class State:

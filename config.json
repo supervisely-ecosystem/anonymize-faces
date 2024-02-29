@@ -28,7 +28,7 @@
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
-    "Target": "yunet",
+    "Target": "both",
     "Shape": "rectangle",
     "Method": "blur",
     "Anonymize": true,

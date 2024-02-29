@@ -404,6 +404,14 @@ def get_total_items(datasets: List[sly.DatasetInfo], project_type) -> int:
             s += sum([video.frames_count for video in videos])
         return s
 
+def get_detectors():
+    if g.STATE.target == g.Model.YUNET:
+        return [detect_faces_yunet]
+    elif g.STATE.target == g.Model.EGOBLUR:
+        return [detect_lp_egoblur]
+    else:
+        return [detect_faces_yunet, detect_lp_egoblur]
+     
 
 def main():
     src_project = g.Api.project.get_info_by_id(g.STATE.selected_project)
@@ -417,9 +425,9 @@ def main():
     run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
     total = get_total_items(datasets, src_project.type)
     with sly.tqdm.tqdm(total=total) as progress:
-        detector = detect_faces_yunet if g.STATE.target == g.Model.YUNET else detect_lp_egoblur
+        detectors = get_detectors()
         for dataset in datasets:
             dst_dataset = create_dst_dataset(dataset, dst_project)
             dst_datasets.append(dst_dataset)
-
-            run_func(dataset, dst_dataset, dst_project_meta, detector, progress)
+            for detector in detectors:
+                run_func(dataset, dst_dataset, dst_project_meta, detector, progress)
