@@ -9,7 +9,7 @@ import supervisely as sly
 import torch
 import torchvision
 from functools import lru_cache
-import zipfile
+from zipfile import ZipFile
 
 import globals as g
 
@@ -142,7 +142,7 @@ def download_egoblur_model():
     with open(model_path_zip, "wb") as f:
         f.write(r.content)
 
-    with zipfile.ZipFile(model_path_zip.absolute(),"r") as zip_ref:
+    with ZipFile(model_path_zip.absolute(),"r") as zip_ref:
         zip_ref.extractall(Path(g.APP_DATA_DIR, "models"))
 
     file_name = "ego_blur_lp.jit"
