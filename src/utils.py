@@ -24,7 +24,7 @@ def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
     tag_metas = project_meta.tag_metas
     if not g.CONFIDENCE_TAG_META_NAME in tag_metas:
         tag_metas = tag_metas.add(
-            sly.TagMeta(g.CONFIDENCE_TAG_META_NAME, sly.TagValueType.ANY_NUMBER)
+            sly.TagMeta(g.CONFIDENCE_TAG_META_NAME, sly.TagValueType.ANY_NUMBER, applicable_to=sly.TagApplicableTo.OBJECTS_ONLY)
         )
         project_meta = project_meta.clone(tag_metas=tag_metas)
     return project_meta
@@ -261,16 +261,16 @@ def obfuscate_faces(img: np.ndarray, faces: List, shape: str, method: str) -> np
 
 
 def update_annotation(dets, annotation: sly.Annotation, project_meta: sly.ProjectMeta):
-    face_obj_class = project_meta.get_obj_class(g.FACE_CLASS_NAME)
     conf_tag_meta = project_meta.get_tag_meta(g.CONFIDENCE_TAG_META_NAME)
-
+    class_name = g.FACE_CLASS_NAME if g.STATE.target == g.Model.YUNET else g.LP_CLASS_NAME
+    obj_class = project_meta.get_obj_class(class_name)
     labels = []
     for det in dets:
         x, y, w, h, conf = det
 
         label = sly.Label(
             sly.Rectangle(y, x, y + h, x + w),
-            obj_class=face_obj_class,
+            obj_class=obj_class,
             tags=[sly.Tag(conf_tag_meta, conf)],
         )
         labels.append(label)
