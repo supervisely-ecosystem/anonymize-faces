@@ -12,14 +12,23 @@ from zipfile import ZipFile
 
 import globals as g
 
-
+def get_obj_class_names():
+    if g.STATE.target == g.Model.BOTH:
+        return [g.FACE_CLASS_NAME, g.LP_CLASS_NAME]
+    elif g.STATE.target == g.Model.YUNET:
+        return [g.FACE_CLASS_NAME]
+    elif g.STATE.target == g.Model.EGOBLUR:
+        return [g.LP_CLASS_NAME]
+    
 def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
     """Update project meta to include anonymized faces"""
     obj_classes = project_meta.obj_classes
-    objclass_name = g.FACE_CLASS_NAME if g.STATE.target == g.Model.YUNET else g.LP_CLASS_NAME
-    if not obj_classes.has_key(objclass_name):
-        obj_classes = obj_classes.add(sly.ObjClass(objclass_name, sly.Rectangle))
-        project_meta = project_meta.clone(obj_classes=obj_classes)
+    
+    obj_class_names = get_obj_class_names()
+    for obj_class_name in obj_class_names:
+        if not obj_classes.has_key(obj_class_name):
+            obj_classes = obj_classes.add(sly.ObjClass(obj_class_name, sly.Rectangle))
+    project_meta = project_meta.clone(obj_classes=obj_classes)
     tag_metas = project_meta.tag_metas
     if not g.CONFIDENCE_TAG_META_NAME in tag_metas:
         tag_metas = tag_metas.add(
