@@ -9,6 +9,7 @@ import supervisely as sly
 import torch
 import torchvision
 from functools import lru_cache
+import zipfile
 
 import globals as g
 
@@ -131,9 +132,27 @@ def get_device() -> str:
         else f"cuda:{torch.cuda.current_device()}"
     )
 
+def download_egoblur_model():
+    url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AfAMHgC_-Bb7Bi3xA6rdCK5a8bTrzmQPTnL4vUt-gIN9zQ&oe=66073B3E&_nc_sid=5cb19f"
+    file_name_zip = "ego_blur_lp.zip"
+
+    model_path_zip = Path(g.APP_DATA_DIR, "models", file_name_zip)
+    model_path_zip.parent.mkdir(parents=True, exist_ok=True)
+    r = requests.get(url, timeout=60)
+    with open(model_path_zip, "wb") as f:
+        f.write(r.content)
+
+    with zipfile.ZipFile(model_path_zip.absolute(),"r") as zip_ref:
+        zip_ref.extractall(Path(g.APP_DATA_DIR, "models"))
+
+    file_name = "ego_blur_lp.jit"
+    
+    return Path(g.APP_DATA_DIR, "models", file_name)
+
+
 def get_lp_egoblur():
     if g.EGOBLUR_MODEl is None:
-        lp_model_path = os.path.join(os.getcwd(), "model", "ego_blur_lp.jit")
+        lp_model_path = download_egoblur_model()
         lp_detector = torch.jit.load(lp_model_path, map_location="cpu").to(get_device())
         lp_detector.eval()
 
@@ -397,7 +416,7 @@ def main():
     run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
     total = get_total_items(datasets, src_project.type)
     with sly.tqdm.tqdm(total=total) as progress:
-        detector = detect_faces_yunet if g.STATE.target == "yunet" else detect_lp_egoblur
+        detector = detect_faces_yunet if g.STATE.target == g.Model.YUNET else detect_lp_egoblur
         for dataset in datasets:
             dst_dataset = create_dst_dataset(dataset, dst_project)
             dst_datasets.append(dst_dataset)
