@@ -8,7 +8,6 @@ import requests
 import supervisely as sly
 import torch
 import torchvision
-from functools import lru_cache
 from zipfile import ZipFile
 
 import globals as g
@@ -125,22 +124,13 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
         res.append([*face_coords, conf])
     return res
 
-def convert_bbox_to_coco(box: list) -> list:
+def convert_bbox_to_coco(box: List) -> List:
     x1, y1, x2, y2 = box
     x = min(x1, x2)
     y = min(y1, y2)
     w = abs(x2 - x1)
     h = abs(y2 - y1)
     return [int(x), int(y), int(w), int(h)]
-
-@lru_cache
-def get_device() -> str:
-    device = "cpu" if not torch.cuda.is_available() else f"cuda:{torch.cuda.current_device()}"
-    
-    if device == "cpu":
-        sly.logger.warning("CUDA is unavailable on this device, falling back to using CPU for computation.")
-    
-    return device
 
 def download_egoblur_model():
     url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AfAMHgC_-Bb7Bi3xA6rdCK5a8bTrzmQPTnL4vUt-gIN9zQ&oe=66073B3E&_nc_sid=5cb19f"
@@ -164,7 +154,7 @@ def download_egoblur_model():
 def get_lp_egoblur():
     if g.EGOBLUR_MODEl is None:
         lp_model_path = download_egoblur_model()
-        lp_detector = torch.jit.load(lp_model_path, map_location="cpu").to(get_device())
+        lp_detector = torch.jit.load(lp_model_path, map_location="cpu").to(g.DEVICE)
         lp_detector.eval()
 
         g.EGOBLUR_MODEl = lp_detector
@@ -179,7 +169,7 @@ def detect_lp_egoblur(
     if len(image.shape) == 2:
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
     image_transposed = np.transpose(image, (2, 0, 1))
-    image_tensor = torch.from_numpy(image_transposed).to(device=get_device())
+    image_tensor = torch.from_numpy(image_transposed).to(device=g.DEVICE)
 
     with torch.no_grad():
         detections = detector(image_tensor)
