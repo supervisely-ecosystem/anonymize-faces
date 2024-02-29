@@ -135,28 +135,30 @@ def convert_bbox_to_coco(box: list) -> list:
 
 @lru_cache
 def get_device() -> str:
-    return (
-        "cpu"
-        if not torch.cuda.is_available()
-        else f"cuda:{torch.cuda.current_device()}"
-    )
+    device = "cpu" if not torch.cuda.is_available() else f"cuda:{torch.cuda.current_device()}"
+    
+    if device == "cpu":
+        sly.logger.warning("CUDA is unavailable on this device, falling back to using CPU for computation.")
+    
+    return device
 
 def download_egoblur_model():
     url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AfAMHgC_-Bb7Bi3xA6rdCK5a8bTrzmQPTnL4vUt-gIN9zQ&oe=66073B3E&_nc_sid=5cb19f"
     file_name_zip = "ego_blur_lp.zip"
-
+    file_name = "ego_blur_lp.jit"
+    model_path = Path(g.APP_DATA_DIR, "models", file_name)
+    if os.path.exists(model_path):
+        return Path(g.APP_DATA_DIR, "models", file_name)
+    
     model_path_zip = Path(g.APP_DATA_DIR, "models", file_name_zip)
     model_path_zip.parent.mkdir(parents=True, exist_ok=True)
     r = requests.get(url, timeout=60)
     with open(model_path_zip, "wb") as f:
         f.write(r.content)
-
     with ZipFile(model_path_zip.absolute(),"r") as zip_ref:
         zip_ref.extractall(Path(g.APP_DATA_DIR, "models"))
-
-    file_name = "ego_blur_lp.jit"
     
-    return Path(g.APP_DATA_DIR, "models", file_name)
+    return model_path
 
 
 def get_lp_egoblur():
