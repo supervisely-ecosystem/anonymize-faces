@@ -193,7 +193,6 @@ def detect_lp_egoblur(
     ]
     return res
 
-
 def _get_rectangles_mask(size, faces):
     mask = np.zeros(size, dtype=np.uint8)
     for x, y, w, h in faces:
@@ -252,9 +251,9 @@ def obfuscate_faces(img: np.ndarray, faces: List, shape: str, method: str) -> np
         return np.where(mask[:, :, None] == 1, 0, img)
 
 
-def update_annotation(dets, annotation: sly.Annotation, project_meta: sly.ProjectMeta):
+def update_annotation(dets, class_name, annotation: sly.Annotation, project_meta: sly.ProjectMeta):
     conf_tag_meta = project_meta.get_tag_meta(g.CONFIDENCE_TAG_META_NAME)
-    class_name = g.FACE_CLASS_NAME if g.STATE.target == g.Model.YUNET else g.LP_CLASS_NAME
+
     obj_class = project_meta.get_obj_class(class_name)
     labels = []
     for det in dets:
@@ -291,7 +290,7 @@ def run_images(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
     dst_project_meta: sly.ProjectMeta,
-    detector: Callable,
+    detectors: List[Callable],
     progress,
 ):
     for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=100):
@@ -306,20 +305,22 @@ def run_images(
         dst_nps = []
         for image_info in batch:
             img = g.Api.image.download_np(image_info.id)
-            dets = detector(img)
-            if g.STATE.should_save_detections:
-                anns_dict[image_info.id] = update_annotation(
-                    dets, anns_dict[image_info.id], dst_project_meta
-                )
-            if g.STATE.should_anonymize:
-                faces = [det[:4] for det in dets]
-                faces.extend(faces_from_annotation(anns_dict[image_info.id]))
-                img = obfuscate_faces(
-                    img,
-                    filter_faces(faces),
-                    g.STATE.obfuscate_shape,
-                    g.STATE.obfuscate_method,
-                )
+            for detector in detectors:
+                dets = detector(img)
+                class_name = g.FACE_CLASS_NAME if detector.__name__ == "detect_faces_yunet" else g.LP_CLASS_NAME
+                if g.STATE.should_save_detections:
+                    anns_dict[image_info.id] = update_annotation(
+                        dets, class_name, anns_dict[image_info.id], dst_project_meta
+                    )
+                if g.STATE.should_anonymize:
+                    faces = [det[:4] for det in dets]
+                    faces.extend(faces_from_annotation(anns_dict[image_info.id]))
+                    img = obfuscate_faces(
+                        img,
+                        filter_faces(faces),
+                        g.STATE.obfuscate_shape,
+                        g.STATE.obfuscate_method,
+                    )
             dst_nps.append(img)
 
             progress.update(1)
@@ -348,7 +349,7 @@ def run_videos(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
     dst_project_meta: sly.ProjectMeta,
-    detector: Callable,
+    detectors: List[Callable],
     progress,
 ):
     for batch in g.Api.video.get_list_generator(src_dataset.id, batch_size=1):
@@ -376,7 +377,9 @@ def run_videos(
                 ret, frame = cap.read()
                 if not ret:
                     break
-                dets = detector(frame)
+                dets = []
+                for detector in detectors:
+                    dets.extend(detector(frame))
                 frame = obfuscate_faces(
                     frame, [d[:4] for d in dets], g.STATE.obfuscate_shape, g.STATE.obfuscate_method
                 )
@@ -429,5 +432,4 @@ def main():
         for dataset in datasets:
             dst_dataset = create_dst_dataset(dataset, dst_project)
             dst_datasets.append(dst_dataset)
-            for detector in detectors:
-                run_func(dataset, dst_dataset, dst_project_meta, detector, progress)
+            run_func(dataset, dst_dataset, dst_project_meta, detectors, progress)
