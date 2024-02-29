@@ -131,7 +131,7 @@ def convert_bbox_to_coco(box: list) -> list:
     y = min(y1, y2)
     w = abs(x2 - x1)
     h = abs(y2 - y1)
-    return [x, y, w, h]
+    return [int(x), int(y), int(w), int(h)]
 
 @lru_cache
 def get_device() -> str:
