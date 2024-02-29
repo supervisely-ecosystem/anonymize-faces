@@ -125,6 +125,14 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
         res.append([*face_coords, conf])
     return res
 
+def convert_bbox_to_coco(box: list) -> list:
+    x1, y1, x2, y2 = box
+    x = min(x1, x2)
+    y = min(y1, y2)
+    w = abs(x2 - x1)
+    h = abs(y2 - y1)
+    return [x, y, w, h]
+
 @lru_cache
 def get_device() -> str:
     return (
@@ -187,7 +195,7 @@ def detect_lp_egoblur(
     boxes = boxes[score_keep_idx]
 
     res = [
-        box.tolist() + [float(score)]
+        convert_bbox_to_coco(box.tolist()) + [float(score)]
         for box, score in zip(boxes, scores)
         if score > model_score_threshold
     ]
