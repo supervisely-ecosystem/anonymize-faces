@@ -17,8 +17,9 @@ import globals as g
 def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
     """Update project meta to include anonymized faces"""
     obj_classes = project_meta.obj_classes
-    if not obj_classes.has_key(g.FACE_CLASS_NAME):
-        obj_classes = obj_classes.add(sly.ObjClass(g.FACE_CLASS_NAME, sly.Rectangle))
+    objclass_name = g.FACE_CLASS_NAME if g.STATE.target == g.Model.YUNET else g.LP_CLASS_NAME
+    if not obj_classes.has_key(objclass_name):
+        obj_classes = obj_classes.add(sly.ObjClass(objclass_name, sly.Rectangle))
         project_meta = project_meta.clone(obj_classes=obj_classes)
     tag_metas = project_meta.tag_metas
     if not g.CONFIDENCE_TAG_META_NAME in tag_metas:
@@ -186,7 +187,7 @@ def detect_lp_egoblur(
     boxes = boxes[score_keep_idx]
 
     res = [
-        box.tolist() + [score]
+        box.tolist() + [float(score)]
         for box, score in zip(boxes, scores)
         if score > model_score_threshold
     ]

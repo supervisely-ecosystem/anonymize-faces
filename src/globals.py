@@ -81,4 +81,5 @@ APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
 YUNET_MODEl = None
 EGOBLUR_MODEl = None
 FACE_CLASS_NAME = "face"
+LP_CLASS_NAME = "license plate"
 CONFIDENCE_TAG_META_NAME = "model confidence"
