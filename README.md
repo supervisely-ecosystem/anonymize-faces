@@ -1,8 +1,8 @@
 <div align="center" markdown>
 
-<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/ecec1b80-bbb9-4b5b-8d61-05f11723b69d"/>
+<img src="https://github.com/supervisely-ecosystem/anonymize-faces/assets/115161827/ac03dbe0-8f5d-4105-9d21-6e518fc08213"/>
 
-# Face detection and anonymization
+# Anonymize Data
   
 <p align="center">
   <a href="#Overview">Overview</a> •
@@ -29,13 +29,13 @@ In some cases you may want to review the results and add/edit annotations. For e
 2. Review the results add/edit annotations if needed.
 3. Run the app with "Anonymize" option enabled.
 
-### Release 1.1.0 update
+### Release 1.2.0 update
 
-- Renamed app to "Face detection and anonymization"
-- Added "Threshold" option
-- Added "Save Detections" option for images.
-  - This option allows to save detected faces as annotations
-  - If Anonymize checkbox is enabled, not only detected faces will be obscured, but all bounding boxes of class `face` will be obscured as well
+- Renamed app to "Anonymize Data"
+- Added "Target selection" option
+- Integrated "EgoBlur" neural network model for car licenseplate detection and anonymization.
+- App now can target Faces, Car License plates or both.
+
 
 ## How To Run
 
@@ -77,4 +77,4 @@ In some cases you may want to review the results and add/edit annotations. For e
 
 # Acknowledgment
 
-This app is based on the great work `libfacedetection` ([github](https://github.com/ShiqiYu/libfacedetection)). ![GitHub Org's stars](https://img.shields.io/github/stars/ShiqiYu/libfacedetection?style=social)
+This app is based on the great work `libfacedetection` ([github](https://github.com/ShiqiYu/libfacedetection)). ![GitHub Org's stars](https://img.shields.io/github/stars/ShiqiYu/libfacedetection?style=social) and `EgoBlur` ([github](https://github.com/facebookresearch/EgoBlur)). ![GitHub Org's stars](https://img.shields.io/github/stars/facebookresearch/EgoBlur?style=social)
