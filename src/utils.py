@@ -21,7 +21,7 @@ def get_obj_class_names():
         return [g.LP_CLASS_NAME]
     
 def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
-    """Update project meta to include anonymized faces"""
+    """Update project meta to include anonymized objects"""
     obj_classes = project_meta.obj_classes
     
     obj_class_names = get_obj_class_names()
@@ -60,7 +60,7 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
     g.Api.project.update_meta(dst_project.id, dst_project_meta)
     dst_custom_data = {
         **src_project.custom_data,
-        "anonymized_faces": True,
+        "anonymized_objects": True,
         "src_project_id": src_project.id,
     }
     g.Api.project.update_custom_data(dst_project.id, dst_custom_data)
@@ -202,15 +202,15 @@ def detect_lp_egoblur(
     ]
     return res
 
-def _get_rectangles_mask(size, faces):
+def _get_rectangles_mask(size, objects):
     mask = np.zeros(size, dtype=np.uint8)
-    for x, y, w, h in faces:
+    for x, y, w, h in objects:
         mask[y : y + h, x : x + w] = 1
     return mask
 
 
-def blur_faces(img, faces, shape: str):
-    for x, y, w, h in faces:
+def blur_objects(img, objects, shape: str):
+    for x, y, w, h in objects:
         if shape == g.Shape.RECTANGLE:
             img[y : y + h, x : x + w] = cv2.blur(img[y : y + h, x : x + w], (h // 2, w // 2))
         elif shape == g.Shape.ELLIPSE:
@@ -233,20 +233,20 @@ def blur_faces(img, faces, shape: str):
     return img
 
 
-def obfuscate_faces(img: np.ndarray, faces: List, shape: str, method: str) -> np.ndarray:
+def obfuscate_objects(img: np.ndarray, objects: List, shape: str, method: str) -> np.ndarray:
     if shape not in g.AVAILABLE_SHAPES:
         raise ValueError(f"Invalid shape: {shape}")
     if method not in g.AVAILABLE_METHODS:
         raise ValueError(f"Invalid method: {method}")
 
     if method == g.Method.BLUR:
-        return blur_faces(img, faces, shape)
+        return blur_objects(img, objects, shape)
     else:
         if shape == g.Shape.RECTANGLE:
-            mask = _get_rectangles_mask(img.shape[:2], faces)
+            mask = _get_rectangles_mask(img.shape[:2], objects)
         elif shape == g.Shape.ELLIPSE:
             mask = np.zeros(img.shape[:2], dtype=np.uint8)
-            for x, y, w, h in faces:
+            for x, y, w, h in objects:
                 mask = cv2.ellipse(
                     mask,
                     (x + w // 2, y + h // 2),
@@ -277,22 +277,22 @@ def update_annotation(dets, class_name, annotation: sly.Annotation, project_meta
     return annotation.add_labels(labels)
 
 
-def face_coords_from_rectangle(rect: sly.Rectangle):
+def coords_from_rectangle(rect: sly.Rectangle):
     return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
 
 
-def faces_from_annotation(ann: sly.Annotation):
+def objects_from_annotation(ann: sly.Annotation):
     return [
-        face_coords_from_rectangle(label.geometry)
+        coords_from_rectangle(label.geometry)
         for label in ann.labels
         if (label.obj_class.name == g.FACE_CLASS_NAME and isinstance(label.geometry, sly.Rectangle))
     ]
 
 
-def filter_faces(faces: List):
-    faces = [tuple(face) for face in faces]
-    faces = set(faces)
-    return list(faces)
+def filter_objects(objects: List):
+    objects = [tuple(obj) for obj in objects]
+    objects = set(objects)
+    return list(objects)
 
 
 def run_images(
@@ -322,11 +322,11 @@ def run_images(
                         dets, class_name, anns_dict[image_info.id], dst_project_meta
                     )
                 if g.STATE.should_anonymize:
-                    faces = [det[:4] for det in dets]
-                    faces.extend(faces_from_annotation(anns_dict[image_info.id]))
-                    img = obfuscate_faces(
+                    objects = [det[:4] for det in dets]
+                    objects.extend(objects_from_annotation(anns_dict[image_info.id]))
+                    img = obfuscate_objects(
                         img,
-                        filter_faces(faces),
+                        filter_objects(objects),
                         g.STATE.obfuscate_shape,
                         g.STATE.obfuscate_method,
                     )
@@ -338,7 +338,7 @@ def run_images(
         dst_img_metas = [
             {
                 **image_info.meta,
-                "anonymized_faces": g.STATE.should_anonymize,
+                "anonymized_objects": g.STATE.should_anonymize,
                 "src_image_id": image_info.id,
             }
             for image_info in batch
@@ -364,7 +364,7 @@ def run_videos(
     for batch in g.Api.video.get_list_generator(src_dataset.id, batch_size=1):
         for video in batch:
             dst_name = video.name
-            dst_video_meta = {**video.meta, "anonymized_faces": True, "src_video_id": video.id}
+            dst_video_meta = {**video.meta, "anonymized_objects": True, "src_video_id": video.id}
             video_path = os.path.join(g.APP_DATA_DIR, "videos", video.name)
             g.Api.video.download_path(
                 video.id,
@@ -389,7 +389,7 @@ def run_videos(
                 dets = []
                 for detector in detectors:
                     dets.extend(detector(frame))
-                frame = obfuscate_faces(
+                frame = obfuscate_objects(
                     frame, [d[:4] for d in dets], g.STATE.obfuscate_shape, g.STATE.obfuscate_method
                 )
                 out.write(frame)
