@@ -1,6 +1,6 @@
 {
-  "name": "Face detection and anonymization",
-  "description": "App to obscure faces on images and videos",
+  "name": "Anonymize Data",
+  "description": "App to obscure data on images and videos",
   "type": "app",
   "categories": [
     "neural network",
@@ -33,7 +33,7 @@
     "Method": "blur",
     "Anonymize": true,
     "SaveDetections": false,
-    "Threshold": 0.6
+    "Threshold": 0.5
   },
   "headless": true
 }
