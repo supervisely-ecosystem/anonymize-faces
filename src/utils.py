@@ -98,6 +98,7 @@ def download_yunet_model(path: str = None):
     else:
         model_path = Path(path)
     if not model_path.exists():
+        sly.logger.info("Model for face detection not found, downloading it...")
         model_path.parent.mkdir(parents=True, exist_ok=True)
         r = requests.get(url, timeout=60)
         with open(model_path, "wb") as f:
@@ -164,6 +165,7 @@ def download_egoblur_model(path: str = None):
     if model_path.is_file():
         return model_path.absolute()
 
+    sly.logger.info("Model for license plate detection not found, downloading it...")
     model_path_zip = model_path.with_name(file_name_zip)
     model_path_zip.parent.mkdir(parents=True, exist_ok=True)
     r = requests.get(url, timeout=60)
