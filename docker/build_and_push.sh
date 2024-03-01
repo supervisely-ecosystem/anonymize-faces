@@ -5,6 +5,6 @@ if [[ -z "${TAG}" ]]; then
   exit 1
 fi
 
-python3 download_models.py
-docker build . -t supervisely/anonymize:${TAG}
+python3 docker/download_models.py
+docker build . -t supervisely/anonymize:${TAG} -f docker/Dockerfile
 docker push supervisely/anonymize:${TAG}
