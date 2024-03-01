@@ -2,6 +2,7 @@ import os
 
 import supervisely as sly
 from dotenv import load_dotenv
+from torch import cuda
 
 if sly.is_development():
     # * For convinient development, has no effect in the production.
@@ -18,6 +19,11 @@ class Method:
     BLUR = "blur"
     SOLID = "solid"
 
+class Model:
+    YUNET = "yunet"
+    EGOBLUR = "egoblur"
+    BOTH = "both"
+
 
 AVAILABLE_SHAPES = [Shape.RECTANGLE, Shape.ELLIPSE]
 AVAILABLE_METHODS = [Method.BLUR, Method.SOLID]
@@ -30,6 +36,7 @@ class ModalState:
     METHOD = "modal.state.Method"
     SAVE_DETECTIONS = "modal.state.SaveDetections"
     ANONYMIZE = "modal.state.Anonymize"
+    TARGET = "modal.state.Target"
 
     def shape(self):
         return os.environ.get(self.SHAPE, Shape.RECTANGLE)
@@ -47,6 +54,9 @@ class ModalState:
 
     def threshold(self):
         return float(os.environ.get("modal.state.Threshold", 0.55))
+    
+    def target(self):
+        return os.environ.get(self.TARGET, Model.BOTH)
 
 
 class State:
@@ -62,6 +72,7 @@ class State:
         self.should_anonymize = ModalState().anonymize()
         self.should_save_detections = ModalState().save_detections()
         self.threshold = ModalState().threshold()
+        self.target = ModalState().target()
         self.continue_working = True
 
 
@@ -70,5 +81,15 @@ Api = sly.Api()
 APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
 
 YUNET_MODEl = None
+EGOBLUR_MODEl = None
+
+if STATE.target == Model.EGOBLUR or STATE.target == Model.BOTH:
+    DEVICE = "cpu" if not cuda.is_available() else f"cuda:{cuda.current_device()}"
+    if DEVICE == "cpu":
+        sly.logger.warning("CUDA is unavailable on this device, falling back to using CPU for computation.")
+    else:
+        sly.logger.info(f"Computing on cuda:{cuda.current_device()} device")
+
 FACE_CLASS_NAME = "face"
+LP_CLASS_NAME = "license plate"
 CONFIDENCE_TAG_META_NAME = "model confidence"

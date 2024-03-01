@@ -1,4 +1,17 @@
 <div class="mt10">
+    <div>
+    <sly-field
+      title="Anonymization Target"
+      description="Select which objects should be targeted for anonymization"
+    >
+    <div>
+      <el-select v-model="state.Target" placeholder="Select Option">
+        <el-option key="both" label="Faces and License Plates" value="both"></el-option>
+        <el-option key="yunet" label="Faces (YUNET)" value="yunet"></el-option>
+        <el-option key="egoblur" label="Car License Plates (Egoblur)" value="egoblur"></el-option>
+      </el-select>
+    </div>
+  </div>
   <div v-if="state?.slySelectedContext && state.slySelectedContext.startsWith('images')">
     <div>
       <el-checkbox
@@ -8,7 +21,7 @@
         <div style="display: inline-block">
           <sly-field
             title="Save Detections"
-            description="Bbox of class 'face' with 'model confidence' tag will be added for each prediction"
+            description="Bbox with 'model confidence' tag will be added for each prediction"
           >
           </sly-field>
         </div>
@@ -22,13 +35,13 @@
         <div style="display: inline-block">
           <sly-field
             title="Anonymize"
-            description="If checked, detected faces will be obfuscated using selected method"
+            description="If checked, detected objects will be obfuscated using selected method"
           ></sly-field>
         </div>
       </el-checkbox>
     </div>
   </div>
-
+  
   <div v-if="state.Anonymize || (state?.slySelectedContext && state.slySelectedContext.startsWith('videos'))" style="margin-left: 22px;">
     <sly-field
       title="Shape"
