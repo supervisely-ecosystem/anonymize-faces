@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Callable, List
+from zipfile import ZipFile
 
 import cv2
 import numpy as np
@@ -8,9 +9,9 @@ import requests
 import supervisely as sly
 import torch
 import torchvision
-from zipfile import ZipFile
 
 import globals as g
+
 
 def get_obj_class_names():
     if g.STATE.target == g.Model.BOTH:
@@ -19,11 +20,12 @@ def get_obj_class_names():
         return [g.FACE_CLASS_NAME]
     elif g.STATE.target == g.Model.EGOBLUR:
         return [g.LP_CLASS_NAME]
-    
+
+
 def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
     """Update project meta to include anonymized objects"""
     obj_classes = project_meta.obj_classes
-    
+
     obj_class_names = get_obj_class_names()
     for obj_class_name in obj_class_names:
         if not obj_classes.has_key(obj_class_name):
@@ -32,7 +34,11 @@ def updated_project_meta(project_meta: sly.ProjectMeta) -> sly.ProjectMeta:
     tag_metas = project_meta.tag_metas
     if not g.CONFIDENCE_TAG_META_NAME in tag_metas:
         tag_metas = tag_metas.add(
-            sly.TagMeta(g.CONFIDENCE_TAG_META_NAME, sly.TagValueType.ANY_NUMBER, applicable_to=sly.TagApplicableTo.OBJECTS_ONLY)
+            sly.TagMeta(
+                g.CONFIDENCE_TAG_META_NAME,
+                sly.TagValueType.ANY_NUMBER,
+                applicable_to=sly.TagApplicableTo.OBJECTS_ONLY,
+            )
         )
         project_meta = project_meta.clone(tag_metas=tag_metas)
     return project_meta
@@ -84,15 +90,19 @@ def create_dst_dataset(
     return dst_dataset
 
 
-def download_yunet_model():
+def download_yunet_model(path: str = None):
     url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
     file_name = "face_detection_yunet_2023mar.onnx"
-    model_path = Path(g.APP_DATA_DIR, "models", file_name)
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    r = requests.get(url, timeout=60)
-    with open(model_path, "wb") as f:
-        f.write(r.content)
-    return model_path.absolute().as_posix()
+    if path is None:
+        model_path = Path(g.APP_DATA_DIR, "models", file_name)
+    else:
+        model_path = Path(path)
+    if not model_path.exists():
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        r = requests.get(url, timeout=60)
+        with open(model_path, "wb") as f:
+            f.write(r.content)
+    return model_path.absolute()
 
 
 def get_yunet_model():
@@ -133,6 +143,7 @@ def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
         res.append([*face_coords, conf])
     return res
 
+
 def convert_bbox_to_coco(box: List) -> List:
     x1, y1, x2, y2 = box
     x = min(x1, x2)
@@ -141,23 +152,27 @@ def convert_bbox_to_coco(box: List) -> List:
     h = abs(y2 - y1)
     return [int(x), int(y), int(w), int(h)]
 
-def download_egoblur_model():
+
+def download_egoblur_model(path: str = None):
     url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AfAMHgC_-Bb7Bi3xA6rdCK5a8bTrzmQPTnL4vUt-gIN9zQ&oe=66073B3E&_nc_sid=5cb19f"
     file_name_zip = "ego_blur_lp.zip"
     file_name = "ego_blur_lp.jit"
-    model_path = Path(g.APP_DATA_DIR, "models", file_name)
-    if os.path.exists(model_path):
-        return Path(g.APP_DATA_DIR, "models", file_name)
-    
-    model_path_zip = Path(g.APP_DATA_DIR, "models", file_name_zip)
+    if path is None:
+        model_path = Path(g.APP_DATA_DIR, "models", file_name)
+    else:
+        model_path = Path(path)
+    if model_path.is_file():
+        return model_path.absolute()
+
+    model_path_zip = model_path.with_name(file_name_zip)
     model_path_zip.parent.mkdir(parents=True, exist_ok=True)
     r = requests.get(url, timeout=60)
     with open(model_path_zip, "wb") as f:
         f.write(r.content)
-    with ZipFile(model_path_zip.absolute(),"r") as zip_ref:
-        zip_ref.extractall(Path(g.APP_DATA_DIR, "models"))
-    
-    return model_path
+    with ZipFile(model_path_zip.absolute(), "r") as zip_ref:
+        zip_ref.extractall(model_path_zip.parent)
+
+    return model_path.absolute()
 
 
 def get_lp_egoblur():
@@ -168,6 +183,7 @@ def get_lp_egoblur():
 
         g.EGOBLUR_MODEl = lp_detector
     return g.EGOBLUR_MODEl
+
 
 def detect_lp_egoblur(
     image: np.ndarray,
@@ -201,6 +217,7 @@ def detect_lp_egoblur(
         if score > model_score_threshold
     ]
     return res
+
 
 def _get_rectangles_mask(size, objects):
     mask = np.zeros(size, dtype=np.uint8)
@@ -316,7 +333,11 @@ def run_images(
             img = g.Api.image.download_np(image_info.id)
             for detector in detectors:
                 dets = detector(img)
-                class_name = g.FACE_CLASS_NAME if detector.__name__ == "detect_faces_yunet" else g.LP_CLASS_NAME
+                class_name = (
+                    g.FACE_CLASS_NAME
+                    if detector.__name__ == "detect_faces_yunet"
+                    else g.LP_CLASS_NAME
+                )
                 if g.STATE.should_save_detections:
                     anns_dict[image_info.id] = update_annotation(
                         dets, class_name, anns_dict[image_info.id], dst_project_meta
@@ -416,6 +437,12 @@ def get_total_items(datasets: List[sly.DatasetInfo], project_type) -> int:
             s += sum([video.frames_count for video in videos])
         return s
 
+
+def download_models(dir: str = None):
+    download_yunet_model(Path(dir, "face_detection_yunet_2023mar.onnx"))
+    download_egoblur_model(Path(dir, "ego_blur_lp.jit"))
+
+
 def get_detectors():
     if g.STATE.target == g.Model.YUNET:
         return [detect_faces_yunet]
@@ -423,7 +450,7 @@ def get_detectors():
         return [detect_lp_egoblur]
     else:
         return [detect_faces_yunet, detect_lp_egoblur]
-     
+
 
 def main():
     src_project = g.Api.project.get_info_by_id(g.STATE.selected_project)
