@@ -7,7 +7,8 @@
 <p align="center">
   <a href="#Overview">Overview</a> •
   <a href="#How-To-Run">How To Run</a> •
-  <a href="#Results">Results</a> 
+  <a href="#Results">Results</a> •
+  <a href="Acknowledgment">Acknowledgement
 </p>
 
 [![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervisely.com/apps/supervisely-ecosystem/anonymize-faces)
