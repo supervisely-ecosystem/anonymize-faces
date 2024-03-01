@@ -109,7 +109,7 @@ def get_yunet_model():
     if g.YUNET_MODEl is None:
         backend_id = cv2.dnn.DNN_BACKEND_OPENCV
         target_id = cv2.dnn.DNN_TARGET_CPU
-        model_path = download_yunet_model()
+        model_path = str(download_yunet_model())
 
         yunet = cv2.FaceDetectorYN.create(
             model=model_path,
@@ -177,7 +177,7 @@ def download_egoblur_model(path: str = None):
 
 def get_lp_egoblur():
     if g.EGOBLUR_MODEl is None:
-        lp_model_path = download_egoblur_model()
+        lp_model_path = str(download_egoblur_model())
         lp_detector = torch.jit.load(lp_model_path, map_location="cpu").to(g.DEVICE)
         lp_detector.eval()
 
