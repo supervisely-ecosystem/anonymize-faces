@@ -83,11 +83,12 @@ APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
 YUNET_MODEl = None
 EGOBLUR_MODEl = None
 
-DEVICE = "cpu" if not cuda.is_available() else f"cuda:{cuda.current_device()}"
-if DEVICE == "cpu":
-    sly.logger.warning("CUDA is unavailable on this device, falling back to using CPU for computation.")
-else:
-    sly.logger.info(f"Computing on cuda:{cuda.current_device()} device")
+if STATE.target == Model.EGOBLUR or STATE.target == Model.BOTH:
+    DEVICE = "cpu" if not cuda.is_available() else f"cuda:{cuda.current_device()}"
+    if DEVICE == "cpu":
+        sly.logger.warning("CUDA is unavailable on this device, falling back to using CPU for computation.")
+    else:
+        sly.logger.info(f"Computing on cuda:{cuda.current_device()} device")
 
 FACE_CLASS_NAME = "face"
 LP_CLASS_NAME = "license plate"
