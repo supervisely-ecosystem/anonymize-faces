@@ -35,5 +35,6 @@
     "SaveDetections": false,
     "Threshold": 0.5
   },
-  "headless": true
+  "headless": true,
+  "gpu": "preferred"
 }
