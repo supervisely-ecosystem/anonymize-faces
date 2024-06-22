@@ -3,6 +3,7 @@ from pathlib import Path
 import time
 from typing import Callable, List
 from zipfile import ZipFile
+from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import numpy as np
@@ -322,80 +323,104 @@ def run_images(
     detectors: List[Callable],
     progress,
 ):
-    for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=100):
-        sly.logger.trace(f"Processing batch of {len(batch)} images")
-        batch_timings = {}
-        t = time.time()
-        ann_infos = g.Api.annotation.download_batch(src_dataset.id, [img.id for img in batch])
-        anns_dict = {
-            ann_info.image_id: sly.Annotation.from_json(
-                ann_info.annotation, project_meta=dst_project_meta
-            )
-            for ann_info in ann_infos
-        }
-        batch_timings["download annotations"] = time.time() - t
+    download_executor = ThreadPoolExecutor(max_workers=10)
+    upload_executor = ThreadPoolExecutor(max_workers=4)
+    try:
+        for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=50):
+            img_cache = {}
+            is_downloading = {}
 
-        dst_nps = []
-        for image_info in batch:
-            timings = {"image_id": image_info.id}
+            sly.logger.debug(f"Processing batch of {len(batch)} images")
+            batch_timings = {}
             t = time.time()
-            img = g.Api.image.download_np(image_info.id)
-            timings["download image"] = time.time() - t
-            for detector in detectors:
-                t = time.time()
-                dets = detector(img)
-                timings.setdefault(detector.__name__, {})["detection"] = time.time() - t
-                class_name = (
-                    g.FACE_CLASS_NAME
-                    if detector.__name__ == "detect_faces_yunet"
-                    else g.LP_CLASS_NAME
+            ann_infos = g.Api.annotation.download_batch(src_dataset.id, [img.id for img in batch])
+            anns_dict = {
+                ann_info.image_id: sly.Annotation.from_json(
+                    ann_info.annotation, project_meta=dst_project_meta
                 )
-                t = time.time()
-                if g.STATE.should_save_detections:
-                    anns_dict[image_info.id] = update_annotation(
-                        dets, class_name, anns_dict[image_info.id], dst_project_meta
-                    )
-                timings[detector.__name__]["update annotation"] = time.time() - t
-                t = time.time()
-                if g.STATE.should_anonymize:
-                    objects = [det[:4] for det in dets]
-                    objects.extend(objects_from_annotation(anns_dict[image_info.id]))
-                    img = obfuscate_objects(
-                        img,
-                        filter_objects(objects),
-                        g.STATE.obfuscate_shape,
-                        g.STATE.obfuscate_method,
-                    )
-                timings[detector.__name__]["obfuscate objects"] = time.time() - t
-            sly.logger.trace(f"Processed image {image_info.id} with detectors: {[detector.__name__ for detector in detectors]}", extra={"timings": timings})
-            batch_timings.setdefault("images", []).append(timings)
-            dst_nps.append(img)
-
-            progress.update(1)
-        t = time.time()
-        dst_names = [image_info.name for image_info in batch]
-        dst_img_metas = [
-            {
-                **image_info.meta,
-                "anonymized_objects": g.STATE.should_anonymize,
-                "src_image_id": image_info.id,
+                for ann_info in ann_infos
             }
-            for image_info in batch
-        ]
-        dst_images = g.Api.image.upload_nps(
-            dataset_id=dst_dataset.id,
-            names=dst_names,
-            imgs=dst_nps,
-            metas=dst_img_metas,
-        )
-        batch_timings["upload images"] = time.time() - t
-        t = time.time()
-        g.Api.annotation.upload_anns(
-            [img.id for img in dst_images], [anns_dict[img.id] for img in batch]
-        )
-        batch_timings["upload annotations"] = time.time() - t
-        sly.logger.trace(f"Processed batch of {len(batch)} images", extra={"timings": batch_timings})
+            batch_timings["download annotations"] = time.time() - t
 
+            def _download_image(image_id):
+                if image_id in is_downloading and is_downloading[image_id]:
+                    sly.logger.debug(f"Waiting for image [{image_id}] to download...", extra={"image_id": image_id})
+                    while is_downloading[image_id]:
+                        time.sleep(0.1)
+                if image_id not in img_cache:
+                    is_downloading[image_id] = True
+                    img_cache[image_id] = g.Api.image.download_np(image_id)
+                    is_downloading[image_id] = False
+                return img_cache[image_id]
+            
+            for image_info in batch:
+                download_executor.submit(_download_image, image_info.id)
+
+            dst_nps = []
+            for image_info in batch:
+                timings = {"image_id": image_info.id}
+                t = time.time()
+                img = _download_image(image_info.id)
+                timings["download image"] = time.time() - t
+                for detector in detectors:
+                    t = time.time()
+                    dets = detector(img)
+                    timings.setdefault(detector.__name__, {})["detection"] = time.time() - t
+                    class_name = (
+                        g.FACE_CLASS_NAME
+                        if detector.__name__ == "detect_faces_yunet"
+                        else g.LP_CLASS_NAME
+                    )
+                    t = time.time()
+                    if g.STATE.should_save_detections:
+                        anns_dict[image_info.id] = update_annotation(
+                            dets, class_name, anns_dict[image_info.id], dst_project_meta
+                        )
+                    timings[detector.__name__]["update annotation"] = time.time() - t
+                    t = time.time()
+                    if g.STATE.should_anonymize:
+                        objects = [det[:4] for det in dets]
+                        objects.extend(objects_from_annotation(anns_dict[image_info.id]))
+                        img = obfuscate_objects(
+                            img,
+                            filter_objects(objects),
+                            g.STATE.obfuscate_shape,
+                            g.STATE.obfuscate_method,
+                        )
+                    timings[detector.__name__]["obfuscate objects"] = time.time() - t
+                sly.logger.debug(f"Processed image {image_info.id} with detectors: {[detector.__name__ for detector in detectors]}", extra={"timings": timings})
+                batch_timings.setdefault("images", []).append(timings)
+                dst_nps.append(img)
+
+            t = time.time()
+            dst_names = [image_info.name for image_info in batch]
+            dst_img_metas = [
+                {
+                    **image_info.meta,
+                    "anonymized_objects": g.STATE.should_anonymize,
+                    "src_image_id": image_info.id,
+                }
+                for image_info in batch
+            ]
+
+            def _upload_images(dst_dataset_id, dst_names, dst_nps, dst_img_metas):
+                t = time.time()
+                dst_images = g.Api.image.upload_nps(dst_dataset_id, dst_names, dst_nps, metas=dst_img_metas)
+                g.Api.annotation.upload_anns(
+                    [img.id for img in dst_images], [anns_dict[img.id] for img in batch]
+                )
+                progress.update(len(dst_images))
+                sly.logger.debug("Uploaded images and annotations", extra={"timings": {"upload": time.time() - t}})
+
+            sly.logger.debug("Submitting images for upload")
+            upload_executor.submit(_upload_images, dst_dataset.id, dst_names, dst_nps, dst_img_metas)
+
+            sly.logger.debug(f"Processed batch of {len(batch)} images", extra={"timings": batch_timings})
+        download_executor.shutdown(wait=True)
+        upload_executor.shutdown(wait=True)
+    finally:
+        download_executor.shutdown(cancel_futures=True)
+        upload_executor.shutdown(cancel_futures=True)
 
 def run_videos(
     src_dataset: sly.DatasetInfo,
