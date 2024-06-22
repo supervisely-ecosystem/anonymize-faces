@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import time
 from typing import Callable, List
 from zipfile import ZipFile
 
@@ -322,6 +323,9 @@ def run_images(
     progress,
 ):
     for batch in g.Api.image.get_list_generator(src_dataset.id, batch_size=100):
+        sly.logger.trace(f"Processing batch of {len(batch)} images")
+        batch_timings = {}
+        t = time.time()
         ann_infos = g.Api.annotation.download_batch(src_dataset.id, [img.id for img in batch])
         anns_dict = {
             ann_info.image_id: sly.Annotation.from_json(
@@ -329,21 +333,30 @@ def run_images(
             )
             for ann_info in ann_infos
         }
+        batch_timings["download annotations"] = time.time() - t
 
         dst_nps = []
         for image_info in batch:
+            timings = {"image_id": image_info.id}
+            t = time.time()
             img = g.Api.image.download_np(image_info.id)
+            timings["download image"] = time.time() - t
             for detector in detectors:
+                t = time.time()
                 dets = detector(img)
+                timings.setdefault(detector.__name__, {})["detection"] = time.time() - t
                 class_name = (
                     g.FACE_CLASS_NAME
                     if detector.__name__ == "detect_faces_yunet"
                     else g.LP_CLASS_NAME
                 )
+                t = time.time()
                 if g.STATE.should_save_detections:
                     anns_dict[image_info.id] = update_annotation(
                         dets, class_name, anns_dict[image_info.id], dst_project_meta
                     )
+                timings[detector.__name__]["update annotation"] = time.time() - t
+                t = time.time()
                 if g.STATE.should_anonymize:
                     objects = [det[:4] for det in dets]
                     objects.extend(objects_from_annotation(anns_dict[image_info.id]))
@@ -353,10 +366,13 @@ def run_images(
                         g.STATE.obfuscate_shape,
                         g.STATE.obfuscate_method,
                     )
+                timings[detector.__name__]["obfuscate objects"] = time.time() - t
+            sly.logger.trace(f"Processed image {image_info.id} with detectors: {[detector.__name__ for detector in detectors]}", extra={"timings": timings})
+            batch_timings.setdefault("images", []).append(timings)
             dst_nps.append(img)
 
             progress.update(1)
-
+        t = time.time()
         dst_names = [image_info.name for image_info in batch]
         dst_img_metas = [
             {
@@ -372,9 +388,13 @@ def run_images(
             imgs=dst_nps,
             metas=dst_img_metas,
         )
+        batch_timings["upload images"] = time.time() - t
+        t = time.time()
         g.Api.annotation.upload_anns(
             [img.id for img in dst_images], [anns_dict[img.id] for img in batch]
         )
+        batch_timings["upload annotations"] = time.time() - t
+        sly.logger.trace(f"Processed batch of {len(batch)} images", extra={"timings": batch_timings})
 
 
 def run_videos(
