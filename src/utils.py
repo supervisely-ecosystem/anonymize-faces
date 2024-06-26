@@ -442,7 +442,7 @@ def run_videos(
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            fourcc = cv2.VideoWriter_fourcc(*"h264")
             out_video_path = os.path.join(g.APP_DATA_DIR, "videos", f"anonymized_{video.name}")
             out = cv2.VideoWriter(
                 out_video_path,
