@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 import time
 from typing import Callable, List
@@ -316,6 +317,30 @@ def filter_objects(objects: List):
     return list(objects)
 
 
+def fix_codec(input_video_path):
+        output_video_path = os.path.splitext(input_video_path)[0] + "_h264" + ".mp4"
+
+        # convert videos
+        subprocess.call(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                f"{input_video_path}",
+                "-c:v",
+                f"libx264",
+                "-c:a",
+                f"copy",
+                f"{output_video_path}",
+            ]
+        )
+        if os.path.exists(output_video_path):
+            sly.fs.silent_remove(input_video_path)
+
+        # rename output video
+        os.rename(output_video_path, input_video_path)
+
+
 def run_images(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
@@ -442,7 +467,7 @@ def run_videos(
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fourcc = cv2.VideoWriter_fourcc(*"avc1")
+            fourcc = cv2.VideoWriter_fourcc(*"XVID")
             out_video_path = os.path.join(g.APP_DATA_DIR, "videos", f"anonymized_{video.name}")
             out = cv2.VideoWriter(
                 out_video_path,
@@ -464,6 +489,9 @@ def run_videos(
                 progress.update(1)
             cap.release()
             out.release()
+
+            fix_codec(out_video_path) # fix codec for Video Labeling tool
+
             dst_video_info = g.Api.video.upload_path(
                 dst_dataset.id, dst_name, out_video_path, dst_video_meta
             )
