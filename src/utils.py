@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 import time
 from typing import Callable, List
@@ -11,6 +12,8 @@ import requests
 import supervisely as sly
 import torch
 import torchvision
+
+from supervisely.video.video import get_info
 
 import globals as g
 
@@ -316,6 +319,42 @@ def filter_objects(objects: List):
     return list(objects)
 
 
+def fix_codec(input_video_path):
+        output_video_path = os.path.splitext(input_video_path)[0] + "_h264" + ".mp4"
+
+        # read video meta_data
+        need_video_transc = False
+        try:
+            video_meta = get_info(input_video_path)
+            for stream in video_meta["streams"]:
+                codec_type = stream["codecType"]
+                if codec_type not in ["video", "audio"]:
+                    continue
+                codec_name = stream["codecName"]
+                if codec_type == "video" and codec_name != "h264":
+                    need_video_transc = True
+        except:
+            need_video_transc = True
+
+        # convert videos
+        if need_video_transc:
+            subprocess.call(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    f"{input_video_path}",
+                    "-c:v",
+                    f"libx264",
+                    "-c:a",
+                    f"copy",
+                    f"{output_video_path}",
+                ]
+            )
+            sly.fs.silent_remove(input_video_path)
+            os.rename(output_video_path, input_video_path)
+
+
 def run_images(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
@@ -464,6 +503,9 @@ def run_videos(
                 progress.update(1)
             cap.release()
             out.release()
+
+            fix_codec(out_video_path) # fix codec for Video Labeling tool
+
             dst_video_info = g.Api.video.upload_path(
                 dst_dataset.id, dst_name, out_video_path, dst_video_meta
             )
