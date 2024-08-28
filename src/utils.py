@@ -458,8 +458,14 @@ def run_images(
         download_executor.shutdown(wait=True)
         upload_executor.shutdown(wait=True)
     finally:
-        download_executor.shutdown(cancel_futures=True)
-        upload_executor.shutdown(cancel_futures=True)
+            import sys
+
+            if sys.version_info >= (3, 9):
+                download_executor.shutdown(wait=False, cancel_futures=True)
+                upload_executor.shutdown(wait=False, cancel_futures=True)
+            else:
+                download_executor.shutdown(wait=False)
+                upload_executor.shutdown(wait=False)
 
 def run_videos(
     src_dataset: sly.DatasetInfo,
