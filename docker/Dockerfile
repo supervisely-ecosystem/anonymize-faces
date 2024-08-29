@@ -1,8 +1,6 @@
 FROM supervisely/base-py-sdk:6.73.35
 
-COPY requirements.txt /workdir/requirements.txt
-
-RUN pip3 install -r /workdir/requirements.txt
+RUN pip install opencv-python==4.9.0.80 torch==2.2.1 torchvision==0.17.1
 
 COPY . /workdir
 
