@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 import time
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Dict
 from zipfile import ZipFile
 from concurrent.futures import ThreadPoolExecutor
 
@@ -524,15 +524,21 @@ def run_videos(
             g.Api.video.annotation.append(dst_video_info.id, src_ann, key_id_map)
 
 
-def get_total_items(datasets: List[sly.DatasetInfo], project_type) -> int:
-    if project_type == str(sly.ProjectType.IMAGES):
-        return sum([dataset.items_count for dataset in datasets])
-    else:
-        s = 0
-        for dataset in datasets:
-            videos = g.Api.video.get_list(dataset.id)
-            s += sum([video.frames_count for video in videos])
-        return s
+def get_total_items(ds_tree: Dict[sly.DatasetInfo, Dict], func: Callable):
+    count = 0
+    for ds_info, children in ds_tree.items():
+        count += func(ds_info)
+        if children:
+            count += get_total_items(children, func)
+    return count
+
+
+def get_selected_ds(ds_tree, id: int) -> List[str]:
+    for ds_info, children in ds_tree.items():
+        if ds_info.id == id:
+            return ds_info
+        if children:
+            get_selected_ds(children, id)
 
 
 def download_models(dir: str = None):
@@ -565,8 +571,19 @@ def main():
         datasets = g.Api.dataset.get_list(src_project.id)
     else:
         datasets = [g.Api.dataset.get_info_by_id(g.STATE.selected_dataset)]
-    run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
-    total = get_total_items(datasets, src_project.type)
+
+    src_ds_tree = g.Api.dataset.get_tree(src_project.id)
+    if g.STATE.selected_dataset:
+        get_selected_ds(src_ds_tree, g.STATE.selected_dataset)
+
+    if src_project.type == str(sly.ProjectType.IMAGES):
+        run_func = run_images
+        total_cb = lambda x: sum([video.frames_count for video in g.Api.video.get_list(x.id)])
+    else:
+        run_func = run_videos
+        total_cb = lambda x: x.items_count
+    total = get_total_items(src_ds_tree, total_cb)
+
     with sly.tqdm.tqdm(total=total) as progress:
         detectors = get_detectors()
-        create_ds_recursive(g.Api.dataset.get_tree(src_project.id), dst_project)
+        create_ds_recursive(src_ds_tree, dst_project)
