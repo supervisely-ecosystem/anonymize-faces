@@ -17,7 +17,7 @@ def download_yunet_model(path: str = None):
 
 
 def download_egoblur_model(path: str = None):
-    url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AfAMHgC_-Bb7Bi3xA6rdCK5a8bTrzmQPTnL4vUt-gIN9zQ&oe=66073B3E&_nc_sid=5cb19f"
+    url = "https://scontent.fopo5-2.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AYCIc6KEMmQnY2oTBVMWWcDEuC34T-fLOYAkcbet5jjyOw&oe=6741E13E&_nc_sid=5cb19f"
     file_name_zip = "ego_blur_lp.zip"
     model_path = Path(path)
     if model_path.is_file():

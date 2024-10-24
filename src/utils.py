@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 import time
-from typing import Callable, List
+from typing import Callable, List, Optional, Dict
 from zipfile import ZipFile
 from concurrent.futures import ThreadPoolExecutor
 
@@ -79,7 +79,7 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
 
 
 def create_dst_dataset(
-    src_dataset: sly.DatasetInfo, dst_project: sly.ProjectInfo
+    src_dataset: sly.DatasetInfo, dst_project: sly.ProjectInfo, parent_id: Optional[int] = None
 ) -> sly.DatasetInfo:
     """Create a new dataset for anonymized images"""
     description = (
@@ -91,7 +91,9 @@ def create_dst_dataset(
         name=src_dataset.name,
         description=description,
         change_name_if_conflict=False,
+        parent_id=parent_id,
     )
+
     return dst_dataset
 
 
@@ -522,15 +524,21 @@ def run_videos(
             g.Api.video.annotation.append(dst_video_info.id, src_ann, key_id_map)
 
 
-def get_total_items(datasets: List[sly.DatasetInfo], project_type) -> int:
-    if project_type == str(sly.ProjectType.IMAGES):
-        return sum([dataset.items_count for dataset in datasets])
-    else:
-        s = 0
-        for dataset in datasets:
-            videos = g.Api.video.get_list(dataset.id)
-            s += sum([video.frames_count for video in videos])
-        return s
+def get_total_items(ds_tree: Dict[sly.DatasetInfo, Dict], func: Callable):
+    count = 0
+    for ds_info, children in ds_tree.items():
+        count += func(ds_info)
+        if children:
+            count += get_total_items(children, func)
+    return count
+
+
+def get_selected_ds(ds_tree, id: int) -> List[str]:
+    for ds_info, children in ds_tree.items():
+        if ds_info.id == id:
+            return ds_info
+        if children:
+            get_selected_ds(children, id)
 
 
 def download_models(dir: str = None):
@@ -548,19 +556,30 @@ def get_detectors():
 
 
 def main():
+
+    def create_ds_recursive(ds_tree, dst_project, parent_id=None):
+        for ds_info, children in ds_tree.items():
+            current_ds = create_dst_dataset(ds_info, dst_project, parent_id)
+            run_func(ds_info, current_ds, dst_project_meta, detectors, progress)
+            if children:
+                create_ds_recursive(children, dst_project, current_ds.id)
+
     src_project = g.Api.project.get_info_by_id(g.STATE.selected_project)
     dst_project = create_dst_project(src_project)
     dst_project_meta = sly.ProjectMeta.from_json(g.Api.project.get_meta(dst_project.id))
-    if g.STATE.selected_dataset is None:
-        datasets = g.Api.dataset.get_list(src_project.id)
+
+    src_ds_tree = g.Api.dataset.get_tree(src_project.id)
+    if g.STATE.selected_dataset:
+        src_ds_tree = get_selected_ds(src_ds_tree, g.STATE.selected_dataset)
+
+    if src_project.type == str(sly.ProjectType.IMAGES):
+        run_func = run_images
+        total_cb = lambda x: x.items_count
     else:
-        datasets = [g.Api.dataset.get_info_by_id(g.STATE.selected_dataset)]
-    dst_datasets = []
-    run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
-    total = get_total_items(datasets, src_project.type)
+        run_func = run_videos
+        total_cb = lambda x: sum([video.frames_count for video in g.Api.video.get_list(x.id)])
+    total = get_total_items(src_ds_tree, total_cb)
+
     with sly.tqdm.tqdm(total=total) as progress:
         detectors = get_detectors()
-        for dataset in datasets:
-            dst_dataset = create_dst_dataset(dataset, dst_project)
-            dst_datasets.append(dst_dataset)
-            run_func(dataset, dst_dataset, dst_project_meta, detectors, progress)
+        create_ds_recursive(src_ds_tree, dst_project)
