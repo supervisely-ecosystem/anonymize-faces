@@ -58,7 +58,7 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
     )
     dst_project = g.Api.project.create(
         workspace_id=src_project.workspace_id,
-        name=g.Api.project.get_free_name(g.STATE.selected_workspace, f"{src_project.name}_anonymized"),
+        name=f"{src_project.name}_anonymized",
         description=description,
         type=src_project.type,
         change_name_if_conflict=True,
