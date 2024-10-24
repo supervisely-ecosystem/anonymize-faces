@@ -567,21 +567,17 @@ def main():
     src_project = g.Api.project.get_info_by_id(g.STATE.selected_project)
     dst_project = create_dst_project(src_project)
     dst_project_meta = sly.ProjectMeta.from_json(g.Api.project.get_meta(dst_project.id))
-    if g.STATE.selected_dataset is None:
-        datasets = g.Api.dataset.get_list(src_project.id)
-    else:
-        datasets = [g.Api.dataset.get_info_by_id(g.STATE.selected_dataset)]
 
     src_ds_tree = g.Api.dataset.get_tree(src_project.id)
     if g.STATE.selected_dataset:
-        get_selected_ds(src_ds_tree, g.STATE.selected_dataset)
+        src_ds_tree = get_selected_ds(src_ds_tree, g.STATE.selected_dataset)
 
     if src_project.type == str(sly.ProjectType.IMAGES):
         run_func = run_images
-        total_cb = lambda x: sum([video.frames_count for video in g.Api.video.get_list(x.id)])
+        total_cb = lambda x: x.items_count
     else:
         run_func = run_videos
-        total_cb = lambda x: x.items_count
+        total_cb = lambda x: sum([video.frames_count for video in g.Api.video.get_list(x.id)])
     total = get_total_items(src_ds_tree, total_cb)
 
     with sly.tqdm.tqdm(total=total) as progress:
