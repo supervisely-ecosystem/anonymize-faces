@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 import time
-from typing import Callable, List
+from typing import Callable, List, Optional
 from zipfile import ZipFile
 from concurrent.futures import ThreadPoolExecutor
 
@@ -79,7 +79,7 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
 
 
 def create_dst_dataset(
-    src_dataset: sly.DatasetInfo, dst_project: sly.ProjectInfo
+    src_dataset: sly.DatasetInfo, dst_project: sly.ProjectInfo, parent_id: Optional[int] = None
 ) -> sly.DatasetInfo:
     """Create a new dataset for anonymized images"""
     description = (
@@ -91,7 +91,9 @@ def create_dst_dataset(
         name=src_dataset.name,
         description=description,
         change_name_if_conflict=False,
+        parent_id=parent_id,
     )
+
     return dst_dataset
 
 
@@ -548,6 +550,14 @@ def get_detectors():
 
 
 def main():
+
+    def create_ds_recursive(ds_tree, dst_project, parent_id=None):
+        for ds_info, children in ds_tree.items():
+            current_ds = create_dst_dataset(ds_info, dst_project, parent_id)
+            run_func(ds_info, current_ds, dst_project_meta, detectors, progress)
+            if children:
+                create_ds_recursive(children, dst_project, current_ds.id)
+
     src_project = g.Api.project.get_info_by_id(g.STATE.selected_project)
     dst_project = create_dst_project(src_project)
     dst_project_meta = sly.ProjectMeta.from_json(g.Api.project.get_meta(dst_project.id))
@@ -555,12 +565,8 @@ def main():
         datasets = g.Api.dataset.get_list(src_project.id)
     else:
         datasets = [g.Api.dataset.get_info_by_id(g.STATE.selected_dataset)]
-    dst_datasets = []
     run_func = run_images if src_project.type == str(sly.ProjectType.IMAGES) else run_videos
     total = get_total_items(datasets, src_project.type)
     with sly.tqdm.tqdm(total=total) as progress:
         detectors = get_detectors()
-        for dataset in datasets:
-            dst_dataset = create_dst_dataset(dataset, dst_project)
-            dst_datasets.append(dst_dataset)
-            run_func(dataset, dst_dataset, dst_project_meta, detectors, progress)
+        create_ds_recursive(g.Api.dataset.get_tree(src_project.id), dst_project)
