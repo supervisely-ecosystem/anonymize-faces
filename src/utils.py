@@ -570,7 +570,8 @@ def main():
 
     src_ds_tree = g.Api.dataset.get_tree(src_project.id)
     if g.STATE.selected_dataset:
-        src_ds_tree = get_selected_ds(src_ds_tree, g.STATE.selected_dataset)
+        selected_dsinfo = get_selected_ds(src_ds_tree, g.STATE.selected_dataset)
+        src_ds_tree = {selected_dsinfo: None}
 
     if src_project.type == str(sly.ProjectType.IMAGES):
         run_func = run_images
