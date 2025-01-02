@@ -37,6 +37,8 @@ class ModalState:
     SAVE_DETECTIONS = "modal.state.SaveDetections"
     ANONYMIZE = "modal.state.Anonymize"
     TARGET = "modal.state.Target"
+    RESIZE_VIDEOS = "modal.state.ResizeVideos"
+    RESIZE_PERCENTAGE = "modal.state.ResizePercentage"
 
     def shape(self):
         return os.environ.get(self.SHAPE, Shape.RECTANGLE)
@@ -54,9 +56,16 @@ class ModalState:
 
     def threshold(self):
         return float(os.environ.get("modal.state.Threshold", 0.55))
-    
+
     def target(self):
         return os.environ.get(self.TARGET, Model.BOTH)
+
+    def resize_videos(self):
+        val = os.environ.get(self.RESIZE_VIDEOS, False)
+        return val in ("True", "true", "1", True)
+
+    def resize_percentage(self):
+        return float(os.environ.get(self.RESIZE_PERCENTAGE, 100))
 
 
 class State:
@@ -73,6 +82,8 @@ class State:
         self.should_save_detections = ModalState().save_detections()
         self.threshold = ModalState().threshold()
         self.target = ModalState().target()
+        self.resize_videos = ModalState().resize_videos()
+        self.resize_percentage = ModalState().resize_percentage()
         self.continue_working = True
 
 
@@ -93,3 +104,6 @@ if STATE.target == Model.EGOBLUR or STATE.target == Model.BOTH:
 FACE_CLASS_NAME = "face"
 LP_CLASS_NAME = "license plate"
 CONFIDENCE_TAG_META_NAME = "model confidence"
+
+if sly.is_development():
+    sly.logger.level = 10

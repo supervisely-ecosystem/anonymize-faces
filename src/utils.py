@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 import time
 from typing import Callable, List, Optional, Dict
-from zipfile import ZipFile
+from zipfile import ZipFile, is_zipfile
 from concurrent.futures import ThreadPoolExecutor
 
 import cv2
@@ -162,7 +162,7 @@ def convert_bbox_to_coco(box: List) -> List:
 
 
 def download_egoblur_model(path: str = None):
-    url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?sdl=1&ccb=10-5&oh=00_AfAMHgC_-Bb7Bi3xA6rdCK5a8bTrzmQPTnL4vUt-gIN9zQ&oe=66073B3E&_nc_sid=5cb19f"
+    url = "https://scontent.fopo5-1.fna.fbcdn.net/m1/v/t6/An9sSpp_UpJ9wK4iapy8E1sWowJGvE3s-_npVcbow_FqLT4OJ0kiLsLOEnIUMC290kM3mfain4-Oomukg7ROXPYZr7YVpc8dJo-VYdOyneJ7HQNa8oi35HOE-H4yJ50wcKXc5eGeIg.zip/ego_blur_lp.zip?_nc_oc=Adg3NONIMTL7HzrjXFQz_n8D2sgRroTMlk1n0tk3I9rxOGcITYuDKlDNATEYgv_n-UOg0J4zAWUJ5-AIvhOva2en&sdl=1&ccb=10-5&oh=00_AYCLGGhU0TBrn1D45VbLzfldOrjdMG91xWsCZvxGkn-6ow&oe=679DF1FE&_nc_sid=5cb19f"
     file_name_zip = "ego_blur_lp.zip"
     file_name = "ego_blur_lp.jit"
     if path is None:
@@ -178,8 +178,10 @@ def download_egoblur_model(path: str = None):
     r = requests.get(url, timeout=60)
     with open(model_path_zip, "wb") as f:
         f.write(r.content)
+    if not is_zipfile(model_path_zip.absolute()):
+        raise ValueError("Downloaded file is not a valid zip file")
     with ZipFile(model_path_zip.absolute(), "r") as zip_ref:
-        zip_ref.extractall(model_path_zip.parent)
+        zip_ref.extractall(model_path_zip.parent.absolute())
 
     return model_path.absolute()
 
@@ -322,39 +324,43 @@ def filter_objects(objects: List):
 
 
 def fix_codec(input_video_path):
-        output_video_path = os.path.splitext(input_video_path)[0] + "_h264" + ".mp4"
+    output_video_path = os.path.splitext(input_video_path)[0] + "_h264" + ".mp4"
 
-        # read video meta_data
-        need_video_transc = False
-        try:
-            video_meta = get_info(input_video_path)
-            for stream in video_meta["streams"]:
-                codec_type = stream["codecType"]
-                if codec_type not in ["video", "audio"]:
-                    continue
-                codec_name = stream["codecName"]
-                if codec_type == "video" and codec_name != "h264":
-                    need_video_transc = True
-        except:
-            need_video_transc = True
+    # read video meta_data
+    need_video_transc = False
+    try:
+        video_meta = get_info(input_video_path)
+        for stream in video_meta["streams"]:
+            codec_type = stream["codecType"]
+            if codec_type not in ["video", "audio"]:
+                continue
+            codec_name = stream["codecName"]
+            if codec_type == "video" and codec_name != "h264":
+                need_video_transc = True
+    except:
+        need_video_transc = True
 
-        # convert videos
-        if need_video_transc:
-            subprocess.call(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    f"{input_video_path}",
-                    "-c:v",
-                    f"libx264",
-                    "-c:a",
-                    f"copy",
-                    f"{output_video_path}",
-                ]
-            )
-            sly.fs.silent_remove(input_video_path)
-            os.rename(output_video_path, input_video_path)
+    # convert videos
+    if need_video_transc:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                f"{input_video_path}",
+                "-c:v",
+                f"libx264",
+                "-c:a",
+                f"copy",
+                f"{output_video_path}",
+            ],
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg error: {result.stderr}")
+        sly.fs.silent_remove(input_video_path)
+        os.rename(output_video_path, input_video_path)
 
 
 def run_images(
@@ -381,7 +387,7 @@ def run_images(
                 )
                 for ann_info in ann_infos
             }
-            batch_timings["download annotations"] = time.time() - t
+            batch_timings["download annotations"] = round(time.time() - t, 3)
 
             def _download_image(image_id):
                 if image_id in is_downloading and is_downloading[image_id]:
@@ -393,7 +399,7 @@ def run_images(
                     img_cache[image_id] = g.Api.image.download_np(image_id)
                     is_downloading[image_id] = False
                 return img_cache[image_id]
-            
+
             for image_info in batch:
                 download_executor.submit(_download_image, image_info.id)
 
@@ -402,11 +408,13 @@ def run_images(
                 timings = {"image_id": image_info.id}
                 t = time.time()
                 img = _download_image(image_info.id)
-                timings["download image"] = time.time() - t
+                timings["download image"] = round(time.time() - t, 3)
                 for detector in detectors:
                     t = time.time()
                     dets = detector(img)
-                    timings.setdefault(detector.__name__, {})["detection"] = time.time() - t
+                    timings.setdefault(detector.__name__, {})["detection"] = round(
+                        time.time() - t, 3
+                    )
                     class_name = (
                         g.FACE_CLASS_NAME
                         if detector.__name__ == "detect_faces_yunet"
@@ -417,7 +425,7 @@ def run_images(
                         anns_dict[image_info.id] = update_annotation(
                             dets, class_name, anns_dict[image_info.id], dst_project_meta
                         )
-                    timings[detector.__name__]["update annotation"] = time.time() - t
+                    timings[detector.__name__]["update annotation"] = round(time.time() - t, 3)
                     t = time.time()
                     if g.STATE.should_anonymize:
                         objects = [det[:4] for det in dets]
@@ -428,7 +436,7 @@ def run_images(
                             g.STATE.obfuscate_shape,
                             g.STATE.obfuscate_method,
                         )
-                    timings[detector.__name__]["obfuscate objects"] = time.time() - t
+                    timings[detector.__name__]["obfuscate objects"] = round(time.time() - t, 3)
                 sly.logger.debug(f"Processed image {image_info.id} with detectors: {[detector.__name__ for detector in detectors]}", extra={"timings": timings})
                 batch_timings.setdefault("images", []).append(timings)
                 dst_nps.append(img)
@@ -456,18 +464,78 @@ def run_images(
             sly.logger.debug("Submitting images for upload")
             upload_executor.submit(_upload_images, dst_dataset.id, dst_names, dst_nps, dst_img_metas)
 
-            sly.logger.debug(f"Processed batch of {len(batch)} images", extra={"timings": batch_timings})
+            batch_avg_yunet_processing_time = round(
+                sum(
+                    image_timings["detect_faces_yunet"]["detection"]
+                    for image_timings in batch_timings["images"]
+                )
+                / len(batch),
+                3,
+            )
+            batch_avg_lp_processing_time = round(
+                sum(
+                    image_timings["detect_lp_egoblur"]["detection"]
+                    for image_timings in batch_timings["images"]
+                )
+                / len(batch),
+                3,
+            )
+            sly.logger.debug(
+                f"Processed batch of {len(batch)} images",
+                extra={
+                    "avg_yunet_det_timing": batch_avg_yunet_processing_time,
+                    "avg_lp_det_timing": batch_avg_lp_processing_time,
+                    "timings": batch_timings,
+                },
+            )
         download_executor.shutdown(wait=True)
         upload_executor.shutdown(wait=True)
     finally:
-            import sys
+        import sys
 
-            if sys.version_info >= (3, 9):
-                download_executor.shutdown(wait=False, cancel_futures=True)
-                upload_executor.shutdown(wait=False, cancel_futures=True)
-            else:
-                download_executor.shutdown(wait=False)
-                upload_executor.shutdown(wait=False)
+        if sys.version_info >= (3, 9):
+            download_executor.shutdown(wait=False, cancel_futures=True)
+            upload_executor.shutdown(wait=False, cancel_futures=True)
+        else:
+            download_executor.shutdown(wait=False)
+            upload_executor.shutdown(wait=False)
+
+
+def resize_video(input_video_path: str, percentage: int):
+    output_video_path = input_video_path.replace(".mp4", "_resized.mp4")
+
+    # Get original video dimensions
+    cap = cv2.VideoCapture(input_video_path)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
+
+    # Calculate new dimensions
+    new_width = int(width * (percentage / 100))
+    new_height = int(height * (percentage / 100))
+    sly.logger.debug(f"Resizing video: {width}x{height} -> {new_width}x{new_height}")
+
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            input_video_path,
+            "-vf",
+            f"scale={new_width}:{new_height}",
+            output_video_path,
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"An ffmpeg error occurred while resizing video: {result.stderr}")
+
+    # Replace the original video with the resized one
+    os.remove(input_video_path)
+    os.rename(output_video_path, input_video_path)
+
 
 def run_videos(
     src_dataset: sly.DatasetInfo,
@@ -478,13 +546,26 @@ def run_videos(
 ):
     for batch in g.Api.video.get_list_generator(src_dataset.id, batch_size=1):
         for video in batch:
+            timer = {}
             dst_name = video.name
-            dst_video_meta = {**video.meta, "anonymized_objects": True, "src_video_id": video.id}
+            dst_video_meta = {
+                **video.meta,
+                "anonymized_objects": True,
+                "src_video_id": video.id,
+            }
             video_path = os.path.join(g.APP_DATA_DIR, "videos", video.name)
+
+            t = time.time()
             g.Api.video.download_path(
                 video.id,
                 video_path,
             )
+            timer["download"] = round(time.time() - t, 3)
+
+            t = time.time()
+
+            if g.STATE.resize_videos:
+                resize_video(video_path, g.STATE.resize_percentage)
             cap = cv2.VideoCapture(video_path)
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -497,6 +578,8 @@ def run_videos(
                 fps,
                 (width, height),
             )
+            timer["open video"] = round(time.time() - t, 3)
+            t = time.time()
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
@@ -505,14 +588,19 @@ def run_videos(
                 for detector in detectors:
                     dets.extend(detector(frame))
                 frame = obfuscate_objects(
-                    frame, [d[:4] for d in dets], g.STATE.obfuscate_shape, g.STATE.obfuscate_method
+                    frame,
+                    [d[:4] for d in dets],
+                    g.STATE.obfuscate_shape,
+                    g.STATE.obfuscate_method,
                 )
                 out.write(frame)
                 progress.update(1)
             cap.release()
             out.release()
+            timer["process video"] = round(time.time() - t, 3)
 
-            fix_codec(out_video_path) # fix codec for Video Labeling tool
+            t = time.time()
+            fix_codec(out_video_path)  # fix codec for Video Labeling tool
 
             dst_video_info = g.Api.video.upload_path(
                 dst_dataset.id, dst_name, out_video_path, dst_video_meta
@@ -522,6 +610,9 @@ def run_videos(
                 g.Api.video.annotation.download(video.id), dst_project_meta, key_id_map
             )
             g.Api.video.annotation.append(dst_video_info.id, src_ann, key_id_map)
+            timer["upload"] = round(time.time() - t, 3)
+            timer["start to finish"] = round(sum(timer.values()), 1)
+            sly.logger.debug(f"Finished processing video (id: {video.id})", extra=timer)
 
 
 def get_total_items(ds_tree: Dict[sly.DatasetInfo, Dict], func: Callable):
@@ -556,7 +647,6 @@ def get_detectors():
 
 
 def main():
-
     def create_ds_recursive(ds_tree, dst_project, parent_id=None):
         for ds_info, children in ds_tree.items():
             current_ds = create_dst_dataset(ds_info, dst_project, parent_id)
