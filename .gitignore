@@ -1,2 +1,4 @@
 .venv/
 *.pyc
+task_data/models/*
+task_data/videos/*
