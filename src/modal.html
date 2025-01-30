@@ -69,6 +69,17 @@
         </div>
       </el-radio-group>
     </sly-field>
+    <el-checkbox v-model="state.ResizeVideos">
+      <div style="display: inline-block">
+        <sly-field
+          title="Resize videos"
+          description="Resize videos by percentage to reduce computation time"
+        ></sly-field>
+      </div>
+    </el-checkbox>
+    <div v-if="state.ResizeVideos">
+      <el-input-number v-model="state.ResizePercentage" :step="1" :min="1" :max="100" size="small"></el-input-number>
+    </div>
   </div>
   <div>
     <sly-field
