@@ -471,7 +471,7 @@ def run_images(
                 )
                 / len(batch),
                 3,
-            ) or None
+            ) or "N/A"
             batch_avg_lp_processing_time = round(
                 sum(
                     image_timings.get("detect_lp_egoblur", {}).get("detection", 0)
@@ -479,12 +479,12 @@ def run_images(
                 )
                 / len(batch),
                 3,
-            ) or None
+            ) or "N/A"
             sly.logger.debug(
                 f"Processed batch of {len(batch)} images",
                 extra={
-                    "avg_yunet_det_timing": batch_avg_yunet_processing_time if batch_avg_yunet_processing_time else "N/A",
-                    "avg_lp_det_timing": batch_avg_lp_processing_time if batch_avg_lp_processing_time else "N/A",
+                    "avg_yunet_det_timing": batch_avg_yunet_processing_time,
+                    "avg_lp_det_timing": batch_avg_lp_processing_time,
                     "timings": batch_timings,
                 },
             )
