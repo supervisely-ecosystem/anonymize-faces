@@ -466,20 +466,20 @@ def run_images(
 
             batch_avg_yunet_processing_time = round(
                 sum(
-                    image_timings["detect_faces_yunet"]["detection"]
+                    image_timings.get("detect_faces_yunet", {}).get("detection", 0)
                     for image_timings in batch_timings["images"]
                 )
                 / len(batch),
                 3,
-            )
+            ) or "N/A"
             batch_avg_lp_processing_time = round(
                 sum(
-                    image_timings["detect_lp_egoblur"]["detection"]
+                    image_timings.get("detect_lp_egoblur", {}).get("detection", 0)
                     for image_timings in batch_timings["images"]
                 )
                 / len(batch),
                 3,
-            )
+            ) or "N/A"
             sly.logger.debug(
                 f"Processed batch of {len(batch)} images",
                 extra={
