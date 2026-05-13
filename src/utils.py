@@ -391,7 +391,10 @@ def run_images(
 
             def _download_image(image_id):
                 if image_id in is_downloading and is_downloading[image_id]:
-                    sly.logger.debug(f"Waiting for image [{image_id}] to download...", extra={"image_id": image_id})
+                    sly.logger.debug(
+                        f"Waiting for image [{image_id}] to download...",
+                        extra={"image_id": image_id},
+                    )
                     while is_downloading[image_id]:
                         time.sleep(0.1)
                 if image_id not in img_cache:
@@ -437,7 +440,10 @@ def run_images(
                             g.STATE.obfuscate_method,
                         )
                     timings[detector.__name__]["obfuscate objects"] = round(time.time() - t, 3)
-                sly.logger.debug(f"Processed image {image_info.id} with detectors: {[detector.__name__ for detector in detectors]}", extra={"timings": timings})
+                sly.logger.debug(
+                    f"Processed image {image_info.id} with detectors: {[detector.__name__ for detector in detectors]}",
+                    extra={"timings": timings},
+                )
                 batch_timings.setdefault("images", []).append(timings)
                 dst_nps.append(img)
 
@@ -454,32 +460,47 @@ def run_images(
 
             def _upload_images(dst_dataset_id, dst_names, dst_nps, dst_img_metas):
                 t = time.time()
-                dst_images = g.Api.image.upload_nps(dst_dataset_id, dst_names, dst_nps, metas=dst_img_metas)
+                dst_images = g.Api.image.upload_nps(
+                    dst_dataset_id, dst_names, dst_nps, metas=dst_img_metas
+                )
                 g.Api.annotation.upload_anns(
                     [img.id for img in dst_images], [anns_dict[img.id] for img in batch]
                 )
                 progress.update(len(dst_images))
-                sly.logger.debug("Uploaded images and annotations", extra={"timings": {"upload": time.time() - t}})
+                sly.logger.debug(
+                    "Uploaded images and annotations",
+                    extra={"timings": {"upload": time.time() - t}},
+                )
 
             sly.logger.debug("Submitting images for upload")
-            upload_executor.submit(_upload_images, dst_dataset.id, dst_names, dst_nps, dst_img_metas)
+            upload_executor.submit(
+                _upload_images, dst_dataset.id, dst_names, dst_nps, dst_img_metas
+            )
 
-            batch_avg_yunet_processing_time = round(
-                sum(
-                    image_timings.get("detect_faces_yunet", {}).get("detection", 0)
-                    for image_timings in batch_timings["images"]
+            batch_avg_yunet_processing_time = (
+                round(
+                    sum(
+                        image_timings.get("detect_faces_yunet", {}).get("detection", 0)
+                        for image_timings in batch_timings.get("images", [])
+                    )
+                    / len(batch),
+                    3,
                 )
-                / len(batch),
-                3,
-            ) or "N/A"
-            batch_avg_lp_processing_time = round(
-                sum(
-                    image_timings.get("detect_lp_egoblur", {}).get("detection", 0)
-                    for image_timings in batch_timings["images"]
+                if len(batch) > 0
+                else "N/A"
+            )
+            batch_avg_lp_processing_time = (
+                round(
+                    sum(
+                        image_timings.get("detect_lp_egoblur", {}).get("detection", 0)
+                        for image_timings in batch_timings.get("images", [])
+                    )
+                    / len(batch),
+                    3,
                 )
-                / len(batch),
-                3,
-            ) or "N/A"
+                if len(batch) > 0
+                else "N/A"
+            )
             sly.logger.debug(
                 f"Processed batch of {len(batch)} images",
                 extra={
@@ -629,7 +650,9 @@ def get_selected_ds(ds_tree, id: int) -> List[str]:
         if ds_info.id == id:
             return ds_info
         if children:
-            get_selected_ds(children, id)
+            result = get_selected_ds(children, id)
+            if result is not None:
+                return result
 
 
 def download_models(dir: str = None):
