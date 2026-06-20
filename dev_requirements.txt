@@ -1,6 +1,11 @@
-supervisely==6.73.35
-PyYAML==5.3.1
+supervisely==6.73.571
+opencv-python==4.9.0.80
+PyYAML==6.0.3
 htmllistparse==0.5.2
-torch==2.2.1
-torchvision==0.17.1
 
+# RTX 50 / Blackwell agents require CUDA 12.8-capable torch wheels.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.10.0+cu128 ; platform_system == "Linux"
+torch==2.10.0 ; platform_system != "Linux"
+torchvision==0.25.0+cu128 ; platform_system == "Linux"
+torchvision==0.25.0 ; platform_system != "Linux"

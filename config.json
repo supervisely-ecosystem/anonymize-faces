@@ -13,8 +13,8 @@
     "data transformation"
   ],
   "icon_cover": true,
-	"icon": "https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/fbd80a43-073a-404b-bf4f-a7b42eba5016",
-	"poster": "https://github.com/supervisely-ecosystem/anonymize-faces/assets/115161827/ac03dbe0-8f5d-4105-9d21-6e518fc08213",
+  "icon": "https://github.com/supervisely-ecosystem/anonymize-faces/assets/119248312/fbd80a43-073a-404b-bf4f-a7b42eba5016",
+  "poster": "https://github.com/supervisely-ecosystem/anonymize-faces/assets/115161827/ac03dbe0-8f5d-4105-9d21-6e518fc08213",
   "context_menu": {
     "context_category": "Transform",
     "target": [
@@ -24,8 +24,8 @@
       "videos_dataset"
     ]
   },
-  "docker_image": "supervisely/anonymize:1.2.3",
-  "min_instance_version": "6.11.19",
+  "docker_image": "supervisely/anonymize:6.73.571",
+  "min_instance_version": "6.15.60",
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
