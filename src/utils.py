@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -363,6 +364,108 @@ def fix_codec(input_video_path):
         os.rename(output_video_path, input_video_path)
 
 
+# Containers that can carry copied-through data streams. Anything else is left untouched.
+REMUXABLE_CONTAINERS = (".mp4", ".mov")
+# Timecode tracks often refuse to remux into a re-encoded file and carry no useful payload here.
+SKIP_DATA_STREAM_TAGS = ("tmcd",)
+# Tolerance when comparing source and anonymized video duration, in seconds.
+DURATION_TOLERANCE = 0.5
+
+
+def _probe_streams(video_path: str) -> List[Dict]:
+    """Return ffprobe stream descriptors for a video file, or an empty list if probing fails"""
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", video_path],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        sly.logger.warning(f"ffprobe failed for {video_path}: {result.stderr}")
+        return []
+    try:
+        return json.loads(result.stdout).get("streams", [])
+    except json.JSONDecodeError:
+        sly.logger.warning(f"Could not parse ffprobe output for {video_path}")
+        return []
+
+
+def _video_duration(streams: List[Dict]) -> Optional[float]:
+    for stream in streams:
+        if stream.get("codec_type") == "video" and stream.get("duration") is not None:
+            return float(stream["duration"])
+    return None
+
+
+def _streams_to_restore(streams: List[Dict]) -> List[int]:
+    """Indices of the source streams that the frame-by-frame rewrite drops: telemetry and audio"""
+    indices = []
+    for stream in streams:
+        codec_type = stream.get("codec_type")
+        if codec_type not in ("data", "audio"):
+            continue
+        if codec_type == "data" and stream.get("codec_tag_string") in SKIP_DATA_STREAM_TAGS:
+            continue
+        indices.append(stream["index"])
+    return indices
+
+
+def restore_source_streams(anonymized_video_path: str, source_video_path: str):
+    """Copy non-video streams and container metadata from the source video into the anonymized one.
+
+    The anonymized video is rebuilt frame by frame with cv2, so it ends up holding a video stream
+    and nothing else: data tracks such as the GoPro gpmd telemetry (GPS, accelerometer, gyroscope)
+    and any audio are lost, together with container-level metadata. They are stream-copied back
+    here, which leaves the anonymized pixels untouched. A no-op when the source has nothing extra.
+    """
+    if os.path.splitext(anonymized_video_path)[1].lower() not in REMUXABLE_CONTAINERS:
+        sly.logger.debug("Output container does not support stream copy, skipping restore")
+        return
+    if not os.path.isfile(source_video_path):
+        sly.logger.warning("Source video is unavailable, cannot restore its streams")
+        return
+
+    source_streams = _probe_streams(source_video_path)
+    indices = _streams_to_restore(source_streams)
+    if not indices:
+        sly.logger.debug("Source video has no data or audio streams to restore")
+        return
+
+    # The restored streams keep the timestamps they had in the source, so they only line up if
+    # the anonymized video still covers the same span of time.
+    source_duration = _video_duration(source_streams)
+    output_duration = _video_duration(_probe_streams(anonymized_video_path))
+    if source_duration is None or output_duration is None:
+        sly.logger.warning("Could not compare video durations, skipping stream restore")
+        return
+    if abs(source_duration - output_duration) > DURATION_TOLERANCE:
+        sly.logger.warning(
+            "Anonymized video duration differs from the source, skipping stream restore "
+            "to avoid desynchronized metadata",
+            extra={"source_duration": source_duration, "output_duration": output_duration},
+        )
+        return
+
+    base, ext = os.path.splitext(anonymized_video_path)
+    restored_path = f"{base}_restored{ext}"
+    cmd = ["ffmpeg", "-y", "-i", anonymized_video_path, "-i", source_video_path, "-map", "0:v:0"]
+    for index in indices:
+        cmd.extend(["-map", f"1:{index}"])
+    # -copy_unknown is required: without it ffmpeg drops streams it cannot decode, gpmd included
+    cmd.extend(["-c", "copy", "-copy_unknown", "-map_metadata", "1", restored_path])
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        sly.fs.silent_remove(restored_path)
+        sly.logger.warning(
+            f"Could not restore source streams, uploading video without them: {result.stderr}"
+        )
+        return
+
+    sly.fs.silent_remove(anonymized_video_path)
+    os.rename(restored_path, anonymized_video_path)
+    sly.logger.debug(f"Restored {len(indices)} stream(s) from the source video")
+
+
 def run_images(
     src_dataset: sly.DatasetInfo,
     dst_dataset: sly.DatasetInfo,
@@ -522,8 +625,9 @@ def run_images(
             upload_executor.shutdown(wait=False)
 
 
-def resize_video(input_video_path: str, percentage: int):
-    output_video_path = input_video_path.replace(".mp4", "_resized.mp4")
+def resize_video(input_video_path: str, percentage: int) -> str:
+    """Write a resized copy of the video and return its path. The input is left in place"""
+    output_video_path = os.path.splitext(input_video_path)[0] + "_resized.mp4"
 
     # Get original video dimensions
     cap = cv2.VideoCapture(input_video_path)
@@ -553,9 +657,7 @@ def resize_video(input_video_path: str, percentage: int):
     if result.returncode != 0:
         raise RuntimeError(f"An ffmpeg error occurred while resizing video: {result.stderr}")
 
-    # Replace the original video with the resized one
-    os.remove(input_video_path)
-    os.rename(output_video_path, input_video_path)
+    return output_video_path
 
 
 def run_videos(
@@ -585,10 +687,19 @@ def run_videos(
 
             t = time.time()
 
+            # the original is kept untouched: its data streams are copied back in below
+            src_video_path = video_path
             if g.STATE.resize_videos:
-                resize_video(video_path, g.STATE.resize_percentage)
+                video_path = resize_video(src_video_path, g.STATE.resize_percentage)
             cap = cv2.VideoCapture(video_path)
-            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            # not rounded to an int: truncating 29.97 to 29 stretches the output and would
+            # desynchronize the restored streams from the video
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            if not fps or fps <= 0:
+                sly.logger.warning(
+                    f"Could not read fps of video (id: {video.id}), falling back to 25"
+                )
+                fps = 25.0
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             fourcc = cv2.VideoWriter_fourcc(*"XVID")
@@ -622,6 +733,9 @@ def run_videos(
 
             t = time.time()
             fix_codec(out_video_path)  # fix codec for Video Labeling tool
+            restore_source_streams(out_video_path, src_video_path)
+            if video_path != src_video_path:
+                sly.fs.silent_remove(video_path)
 
             dst_video_info = g.Api.video.upload_path(
                 dst_dataset.id, dst_name, out_video_path, dst_video_meta
