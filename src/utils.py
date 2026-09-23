@@ -76,7 +76,23 @@ def create_dst_project(src_project: sly.ProjectInfo) -> sly.ProjectInfo:
         "src_project_id": src_project.id,
     }
     g.Api.project.update_custom_data(dst_project.id, dst_custom_data)
+    copy_project_settings(src_project.id, dst_project.id)
     return dst_project
+
+
+def copy_project_settings(src_project_id: int, dst_project_id: int):
+    """Give the anonymized project the source's settings, labeling interface included.
+
+    Without this a video project on the telemetry interface comes out on the default one, and the
+    restored GPS track has no map to show it on. Raw API calls on purpose: the SDK in this image
+    validates the interface against its own list and rejects values newer than itself.
+    """
+    try:
+        settings = g.Api.post("projects.info", {"id": src_project_id}).json().get("settings")
+        if settings:
+            g.Api.post("projects.settings.update", {"id": dst_project_id, "settings": settings})
+    except Exception as e:
+        sly.logger.warning(f"Could not copy project settings to the anonymized project: {e}")
 
 
 def create_dst_dataset(
@@ -625,6 +641,22 @@ def run_images(
             upload_executor.shutdown(wait=False)
 
 
+def video_only_copy(video_path: str) -> str:
+    """A stream copy of just the first video stream, or the path itself when that is all it has."""
+    streams = _probe_streams(video_path)
+    if streams and all(st.get("codec_type") == "video" for st in streams):
+        return video_path
+    base, ext = os.path.splitext(video_path)
+    dst = f"{base}_video_only{ext}"
+    cmd = ["ffmpeg", "-y", "-i", video_path, "-map", "0:v:0", "-c", "copy", dst]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        sly.logger.warning(f"Could not extract the video stream, decoding the original: {result.stderr}")
+        sly.fs.silent_remove(dst)
+        return video_path
+    return dst
+
+
 def resize_video(input_video_path: str, percentage: int) -> str:
     """Write a resized copy of the video and return its path. The input is left in place"""
     output_video_path = os.path.splitext(input_video_path)[0] + "_resized.mp4"
@@ -691,7 +723,12 @@ def run_videos(
             src_video_path = video_path
             if g.STATE.resize_videos:
                 video_path = resize_video(src_video_path, g.STATE.resize_percentage)
-            cap = cv2.VideoCapture(video_path)
+            # OpenCV gives up after OPENCV_FFMPEG_READ_ATTEMPTS non-video packets in a row, and a
+            # GoPro file interleaves audio, timecode and gpmd telemetry between its frames: on a 4K
+            # HERO5 clip it stopped after 14 of 15960 frames. Decode a video-only copy instead; the
+            # original still supplies the streams restored below.
+            read_path = video_only_copy(video_path)
+            cap = cv2.VideoCapture(read_path)
             # not rounded to an int: truncating 29.97 to 29 stretches the output and would
             # desynchronize the restored streams from the video
             fps = cap.get(cv2.CAP_PROP_FPS)
@@ -712,6 +749,8 @@ def run_videos(
             )
             timer["open video"] = round(time.time() - t, 3)
             t = time.time()
+            expected_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or video.frames_count
+            written_frames = 0
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
@@ -726,9 +765,17 @@ def run_videos(
                     g.STATE.obfuscate_method,
                 )
                 out.write(frame)
+                written_frames += 1
                 progress.update(1)
             cap.release()
             out.release()
+            if read_path != video_path:
+                sly.fs.silent_remove(read_path)
+            if expected_frames and written_frames < expected_frames * 0.99:
+                raise RuntimeError(
+                    f"Video {video.name} (id: {video.id}) stopped decoding after {written_frames} "
+                    f"of {expected_frames} frames. Nothing was uploaded for it."
+                )
             timer["process video"] = round(time.time() - t, 3)
 
             t = time.time()
