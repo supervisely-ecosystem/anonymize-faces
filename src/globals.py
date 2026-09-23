@@ -39,6 +39,7 @@ class ModalState:
     TARGET = "modal.state.Target"
     RESIZE_VIDEOS = "modal.state.ResizeVideos"
     RESIZE_PERCENTAGE = "modal.state.ResizePercentage"
+    FACE_DETECTION_SCALE = "modal.state.FaceDetectionScale"
 
     def shape(self):
         return os.environ.get(self.SHAPE, Shape.RECTANGLE)
@@ -67,6 +68,10 @@ class ModalState:
     def resize_percentage(self):
         return float(os.environ.get(self.RESIZE_PERCENTAGE, 100))
 
+    def face_detection_scale(self):
+        val = float(os.environ.get(self.FACE_DETECTION_SCALE, 100))
+        return min(max(val, 1), 100)
+
 
 class State:
     """App state"""
@@ -84,6 +89,7 @@ class State:
         self.target = ModalState().target()
         self.resize_videos = ModalState().resize_videos()
         self.resize_percentage = ModalState().resize_percentage()
+        self.face_detection_scale = ModalState().face_detection_scale()
         self.continue_working = True
 
 
@@ -97,7 +103,11 @@ EGOBLUR_MODEl = None
 if STATE.target == Model.EGOBLUR or STATE.target == Model.BOTH:
     DEVICE = "cpu" if not cuda.is_available() else f"cuda:{cuda.current_device()}"
     if DEVICE == "cpu":
-        sly.logger.warning("CUDA is unavailable on this device, falling back to using CPU for computation.")
+        sly.logger.warning(
+            "CUDA is unavailable, license plate detection will run on CPU and be very slow "
+            "(seconds per frame). Run the app on an agent with a GPU, or select Faces only. "
+            "A GPU agent also falls back to CPU if its NVIDIA driver does not support CUDA 12."
+        )
     else:
         sly.logger.info(f"Computing on cuda:{cuda.current_device()} device")
 

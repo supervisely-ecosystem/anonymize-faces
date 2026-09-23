@@ -36,7 +36,8 @@
     "SaveDetections": false,
     "Threshold": 0.5,
     "ResizeVideos": false,
-    "ResizePercentage": 100
+    "ResizePercentage": 100,
+    "FaceDetectionScale": 100
   },
   "headless": true,
   "gpu": "preferred"

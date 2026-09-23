@@ -11,6 +11,19 @@
         <el-option key="egoblur" label="Car License Plates (Egoblur)" value="egoblur"></el-option>
       </el-select>
     </div>
+    <div v-if="state.Target !== 'yunet'" style="margin-top: 8px; color: #e6a23c;">
+      <i class="zmdi zmdi-alert-triangle"></i>
+      License plate detection needs an agent with a GPU. On CPU it takes several seconds per
+      frame, so a video can take hours. Without a GPU, select Faces only.
+    </div>
+  </div>
+  <div v-if="state.Target !== 'egoblur'">
+    <sly-field
+      title="Face detection scale, %"
+      description="Detect faces on a downscaled copy of each frame. 50% is several times faster on 4K video but may miss very small faces"
+    >
+      <el-input-number v-model="state.FaceDetectionScale" :step="5" :min="10" :max="100" size="small"></el-input-number>
+    </sly-field>
   </div>
   <div v-if="state?.slySelectedContext && state.slySelectedContext.startsWith('images')">
     <div>
