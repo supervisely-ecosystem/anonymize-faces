@@ -30,6 +30,10 @@ In some cases you may want to review the results and add/edit annotations. For e
 2. Review the results add/edit annotations if needed.
 3. Run the app with "Anonymize" option enabled.
 
+Speed tips:
+- License plate detection needs an agent with a GPU. On CPU it takes several seconds per frame.
+- On high-resolution videos, set "Face detection scale" below 100% to detect faces faster. Very small faces may be missed.
+
 ### Release 1.2.0 update
 
 - Renamed app to "Anonymize Data"

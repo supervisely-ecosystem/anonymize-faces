@@ -69,7 +69,10 @@ class ModalState:
         return float(os.environ.get(self.RESIZE_PERCENTAGE, 100))
 
     def face_detection_scale(self):
-        val = float(os.environ.get(self.FACE_DETECTION_SCALE, 100))
+        try:
+            val = float(os.environ.get(self.FACE_DETECTION_SCALE, 100))
+        except ValueError:
+            val = 100
         return min(max(val, 1), 100)
 
 
