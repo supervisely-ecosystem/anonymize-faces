@@ -153,18 +153,29 @@ def get_yunet_model():
 
 def detect_faces_yunet(img: np.ndarray) -> np.ndarray:
     model = get_yunet_model()
+    # YuNet runs on CPU, where a 4K frame costs over a second: detecting on a downscaled copy is
+    # much faster, and the boxes are scaled back to the original frame
+    scale = g.STATE.face_detection_scale / 100
+    if scale < 1:
+        width = max(1, round(img.shape[1] * scale))
+        height = max(1, round(img.shape[0] * scale))
+        scale_x, scale_y = width / img.shape[1], height / img.shape[0]
+        img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
+    else:
+        scale_x = scale_y = 1
     model.setInputSize((img.shape[1], img.shape[0]))
     _, faces = model.detect(img)
     if faces is None:
         return []
 
-    def _convert(coord: str):
-        return max(0, int(coord))
+    def _convert(coord: str, scale: float):
+        return max(0, int(coord / scale))
 
     res = []
     for face in faces:
         conf = float(face[-1])
-        face_coords = [_convert(x) for x in face[:4]]
+        scales = (scale_x, scale_y, scale_x, scale_y)
+        face_coords = [_convert(x, s) for x, s in zip(face[:4], scales)]
         res.append([*face_coords, conf])
     return res
 
@@ -224,10 +235,13 @@ def detect_lp_egoblur(
     image_transposed = np.transpose(image, (2, 0, 1))
     image_tensor = torch.from_numpy(image_transposed).to(device=g.DEVICE)
 
-    with torch.no_grad():
+    # fp16 on GPU is much faster and moves the boxes by a fraction of a pixel; CPU stays in fp32
+    use_fp16 = g.DEVICE.startswith("cuda")
+    with torch.no_grad(), torch.autocast("cuda", dtype=torch.float16, enabled=use_fp16):
         detections = detector(image_tensor)
 
     boxes, _, scores, _ = detections  # returns boxes, labels, scores, dims
+    boxes, scores = boxes.float(), scores.float()
 
     nms_keep_idx = torchvision.ops.nms(boxes, scores, nms_iou_threshold)
     boxes = boxes[nms_keep_idx]
@@ -245,6 +259,27 @@ def detect_lp_egoblur(
         if score > model_score_threshold
     ]
     return res
+
+
+DETECTORS_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+
+
+def run_detectors(detectors: List[Callable], img: np.ndarray) -> List[tuple]:
+    """Run every detector on the image and return (detector, detections, seconds) in their order.
+
+    With both models selected they run side by side: YuNet on CPU while EgoBlur is on the GPU.
+    cv2 and torch release the GIL, so two threads are enough to overlap them.
+    """
+
+    def _detect(detector):
+        t = time.time()
+        dets = detector(img)
+        return detector, dets, round(time.time() - t, 3)
+
+    if len(detectors) == 1:
+        return [_detect(detectors[0])]
+    futures = [DETECTORS_EXECUTOR.submit(_detect, detector) for detector in detectors]
+    return [future.result() for future in futures]
 
 
 def _get_rectangles_mask(size, objects):
@@ -531,12 +566,8 @@ def run_images(
                 t = time.time()
                 img = _download_image(image_info.id)
                 timings["download image"] = round(time.time() - t, 3)
-                for detector in detectors:
-                    t = time.time()
-                    dets = detector(img)
-                    timings.setdefault(detector.__name__, {})["detection"] = round(
-                        time.time() - t, 3
-                    )
+                for detector, dets, detection_time in run_detectors(detectors, img):
+                    timings.setdefault(detector.__name__, {})["detection"] = detection_time
                     class_name = (
                         g.FACE_CLASS_NAME
                         if detector.__name__ == "detect_faces_yunet"
@@ -756,8 +787,8 @@ def run_videos(
                 if not ret:
                     break
                 dets = []
-                for detector in detectors:
-                    dets.extend(detector(frame))
+                for _, detector_dets, _ in run_detectors(detectors, frame):
+                    dets.extend(detector_dets)
                 frame = obfuscate_objects(
                     frame,
                     [d[:4] for d in dets],
