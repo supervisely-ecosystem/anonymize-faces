@@ -24,7 +24,7 @@
       "videos_dataset"
     ]
   },
-  "docker_image": "supervisely/anonymize:1.2.3",
+  "docker_image": "supervisely/anonymize:1.2.4",
   "min_instance_version": "6.11.19",
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",

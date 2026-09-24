@@ -1,4 +1,5 @@
 import os
+import re
 
 import supervisely as sly
 from dotenv import load_dotenv
@@ -103,8 +104,33 @@ APP_DATA_DIR = "/sly_task_data" if sly.is_production() else "task_data"
 YUNET_MODEl = None
 EGOBLUR_MODEl = None
 
+
+def _cuda_supports_device() -> bool:
+    """Whether this torch build has kernels the current GPU can run"""
+    major, minor = cuda.get_device_capability()
+    for arch in cuda.get_arch_list():
+        match = re.fullmatch(r"(sm|compute)_(\d+)(\d)[a-z]?", arch)
+        if match is None:
+            continue
+        kind, arch_major, arch_minor = match[1], int(match[2]), int(match[3])
+        # a binary runs on a newer GPU of the same major, PTX on any newer GPU
+        if kind == "sm" and arch_major == major and arch_minor <= minor:
+            return True
+        if kind == "compute" and (arch_major, arch_minor) <= (major, minor):
+            return True
+    return False
+
+
 if STATE.target == Model.EGOBLUR or STATE.target == Model.BOTH:
-    DEVICE = "cpu" if not cuda.is_available() else f"cuda:{cuda.current_device()}"
+    DEVICE = "cpu"
+    if cuda.is_available():
+        if _cuda_supports_device():
+            DEVICE = f"cuda:{cuda.current_device()}"
+        else:
+            sly.logger.warning(
+                f"{cuda.get_device_name()} is not supported by this build of torch "
+                f"({', '.join(cuda.get_arch_list())})."
+            )
     if DEVICE == "cpu":
         sly.logger.warning(
             "CUDA is unavailable, license plate detection will run on CPU and be very slow "
